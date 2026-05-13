@@ -70,44 +70,81 @@ https://physionet.org/content/ltafdb/1.0.0/
 
 ---
 
-### Long-Term Atrial Fibrillation Database
+## WEEK 5 progress
 
-Currently being integrated. Details will be updated as preprocessing is finalized.
+# Record Information & Data Visualization
+
+## ✅ Records Used (23 Records)
+
+04015, 04043, 04048, 04126, 04746, 04908, 04936,  
+05091, 05121, 05261, 06426, 06453, 06995, 07162,  
+07859, 07879, 07910, 08215, 08219, 08378, 08455,  
+08465, 08475
 
 ---
 
-## ⚙️ Preprocessing Pipeline (Planned)
+## ❌ Excluded Records
 
-- Resampling signals to a common frequency (128 Hz)
-- Bandpass filtering (~0.5–40 Hz)
+| Record | Reason                 |
+| ------ | ---------------------- |
+| 00735  | Signal unavailable     |
+| 03665  | Signal unavailable     |
+| 08405  | Unreadable data blocks |
+| 08434  | Unreadable data blocks |
+
+> Note: Record `04043` contains partially corrupted blocks but remains usable for visualization/testing.
+
+---
+
+# Dataset File Explanation
+
+| File   | Description                                                                            |
+| ------ | -------------------------------------------------------------------------------------- |
+| `.dat` | Raw ECG waveform data                                                                  |
+| `.hea` | Metadata (record name, number of leads, sampling frequency, signal length, start time) |
+| `.atr` | Rhythm annotations and labels (e.g. AFib, Normal rhythm)                               |
+| `.qrs` | Detected R-peak locations                                                              |
+
+---
+
+# Planned Input
+
+- Live ECG signal stream
+
+---
+
+# Planned Preprocessing Pipeline
+
+- Bandpass filtering for noise reduction
+- Resampling to **128 Hz**
 - Signal normalization
-- Window segmentation (e.g., 10–30 seconds)
-- Label alignment using .atr annotations
+- Window segmentation
 
 ---
 
-## 📊 Data Visualization
+# Planned Output
 
-- ECG waveform visualization implemented for MIT-BIH AFDB
-- Used for signal inspection, annotation verification, and debugging preprocessing steps
-
----
-
-## 🚀 Future Work
-
-- Complete integration of Long-Term AF Database
-- Implement full preprocessing pipeline
-- Train baseline model (CNN / RNN / Transformer) or find baseline references
+- AFib probability (%)
+- SHAP-based explainability
+- Explainable AI visualization
 
 ---
 
-## 📜 License
+# Current Challenges
 
-This project is licensed under the MIT License.
+The Long-Term AF Database (LTAFDB) contains substantial noise and motion artifacts due to long-duration Holter monitor recordings.
 
 ---
 
-## 🙌 Acknowledgements
+# Future Training Plans
 
-- PhysioNet for providing open-access ECG datasets
-- Researchers behind the MIT-BIH and Long-Term AF databases
+1. Patient-level data split
+2. 80 / 10 / 10 train-validation-test split
+3. 30-second windows with 50% overlap  
+   (may reduce overlap to ~25%)
+4. Compare multiple models:
+   - XGBoost (XGB)
+   - Random Forest (RF)
+   - CNN
+   - LSTM
+   - CNN + LSTM hybrid

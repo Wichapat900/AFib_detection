@@ -1,34 +1,46 @@
 """
-preprocess_ltaf.py — Long Term AF Database Preprocessing
-=========================================================
-Prepares the MIT-BIH Long Term AF Database for cross-validation.
+preprocess_ltaf.py — Improved Long-Term AF Database Preprocessing
+=================================================================
+
+Changes from previous version:
+- Fixed SEG_SAMPLES comment
+- Bandpass BEFORE resampling
+- Uses resample_poly instead of resample
+- Cleaner pipeline structure
+- Better numerical stability
+- More deployment-consistent preprocessing
 
 Outputs:
-  - data/ltaf/signals.npy      (N, 7500) float32
-  - data/ltaf/labels.npy       (N,) int  0=Normal 1=AFib
-  - data/ltaf/patient_ids.npy  (N,) int
-
-Usage:
-  python src/preprocess_ltaf.py
+  - data/ltaf/signals.npy
+  - data/ltaf/labels.npy
+  - data/ltaf/patient_ids.npy
 """
 
 import numpy as np
 import wfdb
 from pathlib import Path
-from scipy.signal import butter, filtfilt, resample
-import json, datetime
+from scipy.signal import butter, filtfilt, resample_poly
+import json
+import datetime
 import warnings
+
 warnings.filterwarnings("ignore")
 
-# ── Config ────────────────────────────────────────────────────────────────────
-DB_PATH     = Path("Long Term AF Database V1.0.0")
-OUT_PATH    = Path("data/ltaf")
-SAMPLE_RATE = 128
-SEG_LEN     = 30
-SEG_SAMPLES = SEG_LEN * SAMPLE_RATE  # 7500
-OVERLAP     = 0.5
+# ─────────────────────────────────────────────────────────────
+# CONFIG
+# ─────────────────────────────────────────────────────────────
 
-AFIB_LABELS   = {"(AFIB", "AFIB"}
+DB_PATH = Path("Long Term AF Database V1.0.0")
+OUT_PATH = Path("data/ltaf")
+
+TARGET_FS = 128
+
+SEG_LEN = 30
+SEG_SAMPLES = SEG_LEN * TARGET_FS  # 3840
+
+OVERLAP = 0.5
+
+AFIB_LABELS = {"(AFIB", "AFIB"}
 NORMAL_LABELS = {"(N", "N", "(NSR", "NSR"}
 
 RECORDS = [
@@ -45,143 +57,227 @@ RECORDS = [
     "60","62","64","65","68","69","70","71","72","74","75",
 ]
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+# FILTERING
+# ─────────────────────────────────────────────────────────────
 
-def bandpass(signal, fs, lo=0.5, hi=40.0):
+def bandpass_filter(signal, fs, lowcut=0.5, highcut=40.0, order=4):
     nyq = fs / 2
-    b, a = butter(4, [lo / nyq, hi / nyq], btype="band")
+
+    highcut = min(highcut, nyq * 0.99)
+
+    low = lowcut / nyq
+    high = highcut / nyq
+
+    b, a = butter(order, [low, high], btype="band")
+
     return filtfilt(b, a, signal)
 
 
+# ─────────────────────────────────────────────────────────────
+# LABEL MAPPING
+# ─────────────────────────────────────────────────────────────
+
 def get_rhythm_map(ann, signal_len):
+
     labels = np.full(signal_len, -1, dtype=np.int8)
+
     current_label = -1
+
     for i, sym in enumerate(ann.aux_note):
+
         sym_clean = sym.strip().rstrip("\x00")
         sample = ann.sample[i]
+
         if sym_clean in AFIB_LABELS:
             current_label = 1
+
         elif sym_clean in NORMAL_LABELS:
             current_label = 0
+
         elif sym_clean in ("(AFL", "AFL", "(J", "J"):
             current_label = -1
+
         if 0 <= sample < signal_len:
             labels[sample] = current_label
-    # Forward-fill
+
+    # Forward-fill labels
     cur = -1
+
     for i in range(signal_len):
+
         if labels[i] != -1:
             cur = labels[i]
+
         labels[i] = cur
+
     return labels
 
 
-def extract_segments(signal, rhythm_map, fs, record_idx):
+# ─────────────────────────────────────────────────────────────
+# SIGNAL CLEANING
+# ─────────────────────────────────────────────────────────────
+
+def fix_nan(signal):
+
+    sig = signal.copy()
+
+    nans = np.isnan(sig)
+
+    if nans.any():
+        idx = np.arange(len(sig))
+        sig[nans] = np.interp(idx[nans], idx[~nans], sig[~nans])
+
+    return sig
+
+
+# ─────────────────────────────────────────────────────────────
+# SEGMENT EXTRACTION
+# ─────────────────────────────────────────────────────────────
+
+def extract_segments(signal, rhythm_map, fs, patient_id):
+
     step = int(SEG_SAMPLES * (1 - OVERLAP))
-    segments, labels, pids = [], [], []
-    for start in range(0, len(signal) - SEG_SAMPLES, step):
-        end = start + SEG_SAMPLES
-        seg_labels = rhythm_map[start:end]
+
+    segments = []
+    labels = []
+    patient_ids = []
+
+    for start in range(0, len(signal) - int(SEG_LEN * fs), step):
+
+        end_original = start + int(SEG_LEN * fs)
+
+        seg = signal[start:end_original]
+        seg_labels = rhythm_map[start:end_original]
+
+        # Remove unknown labels
         known = seg_labels[seg_labels != -1]
-        if len(known) < SEG_SAMPLES * 0.8:
+
+        if len(known) < len(seg_labels) * 0.8:
             continue
+
         afib_frac = np.mean(known == 1)
+
         if afib_frac > 0.8:
             lbl = 1
+
         elif afib_frac < 0.2:
             lbl = 0
+
         else:
             continue
-        seg = signal[start:end].copy()
-        if fs != SAMPLE_RATE:
-            seg = resample(seg, SEG_SAMPLES).astype(np.float32)
-        seg = bandpass(seg, SAMPLE_RATE).astype(np.float32)
+
+        # 1. FILTER FIRST
+        seg = bandpass_filter(seg, fs)
+
+        # 2. RESAMPLE SECOND
+        if fs != TARGET_FS:
+            seg = resample_poly(seg, TARGET_FS, int(fs))
+
+        # Ensure exact length
+        if len(seg) != SEG_SAMPLES:
+            continue
+
+        seg = seg.astype(np.float32)
+
+        # 3. NORMALIZE
         seg = (seg - np.mean(seg)) / (np.std(seg) + 1e-8)
+
         segments.append(seg)
         labels.append(lbl)
-        pids.append(record_idx)
-    return segments, labels, pids
+        patient_ids.append(patient_id)
+
+    return segments, labels, patient_ids
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+# MAIN
+# ─────────────────────────────────────────────────────────────
 
 def preprocess_ltaf():
+
     OUT_PATH.mkdir(parents=True, exist_ok=True)
-    all_segs, all_labels, all_pids = [], [], []
+
+    all_segments = []
+    all_labels = []
+    all_patient_ids = []
+
     skipped = []
 
-    for rec_idx, record_id in enumerate(RECORDS):
+    for patient_id, record_id in enumerate(RECORDS):
+
         rec_path = str(DB_PATH / record_id)
 
-        # Check files exist
         if not (DB_PATH / f"{record_id}.dat").exists():
-            print(f"  [{rec_idx+1}/{len(RECORDS)}] SKIP {record_id} — file not found")
+
+            print(f"[SKIP] {record_id} — file missing")
             skipped.append(record_id)
             continue
 
         try:
             rec = wfdb.rdrecord(rec_path)
             ann = wfdb.rdann(rec_path, "atr")
+
         except Exception as e:
-            print(f"  [{rec_idx+1}/{len(RECORDS)}] SKIP {record_id} — {e}")
+
+            print(f"[SKIP] {record_id} — {e}")
             skipped.append(record_id)
             continue
 
-        # Print what annotation symbols this record uses
-        syms = set(s.strip().rstrip("\x00") for s in ann.aux_note if s.strip())
-        fs   = rec.fs
-        sig  = rec.p_signal[:, 0].astype(np.float32)
+        signal = rec.p_signal[:, 0].astype(np.float32)
 
-        # Fix NaN
-        nans = np.isnan(sig)
-        if nans.any():
-            idx = np.arange(len(sig))
-            sig[nans] = np.interp(idx[nans], idx[~nans], sig[~nans])
+        signal = fix_nan(signal)
 
-        rhythm_map = get_rhythm_map(ann, len(sig))
-        segs, lbls, pids = extract_segments(sig, rhythm_map, fs, rec_idx)
+        fs = rec.fs
 
-        print(f"  [{rec_idx+1}/{len(RECORDS)}] {record_id} | fs={fs} | "
-              f"segs={len(segs)} AFib={sum(l==1 for l in lbls)} "
-              f"Normal={sum(l==0 for l in lbls)} | syms={syms}")
+        rhythm_map = get_rhythm_map(ann, len(signal))
 
-        all_segs.extend(segs)
+        segs, lbls, pids = extract_segments(
+            signal,
+            rhythm_map,
+            fs,
+            patient_id
+        )
+
+        print(
+            f"{record_id} | "
+            f"segments={len(segs)} | "
+            f"AFib={sum(l == 1 for l in lbls)} | "
+            f"Normal={sum(l == 0 for l in lbls)}"
+        )
+
+        all_segments.extend(segs)
         all_labels.extend(lbls)
-        all_pids.extend(pids)
+        all_patient_ids.extend(pids)
 
-    X = np.array(all_segs,   dtype=np.float32)
+    X = np.array(all_segments, dtype=np.float32)
     y = np.array(all_labels, dtype=np.int8)
-    g = np.array(all_pids,   dtype=np.int16)
+    g = np.array(all_patient_ids, dtype=np.int16)
 
-    np.save(OUT_PATH / "signals.npy",     X)
-    np.save(OUT_PATH / "labels.npy",      y)
+    np.save(OUT_PATH / "signals.npy", X)
+    np.save(OUT_PATH / "labels.npy", y)
     np.save(OUT_PATH / "patient_ids.npy", g)
 
-    print(f"\n{'='*50}")
-    print(f"Saved {len(X)} segments")
-    print(f"  AFib:   {np.sum(y==1)} ({np.mean(y==1)*100:.1f}%)")
-    print(f"  Normal: {np.sum(y==0)} ({np.mean(y==0)*100:.1f}%)")
-    print(f"  Shape:  {X.shape}")
-    if skipped:
-        print(f"  Skipped: {skipped}")
-    print(f"Saved to {OUT_PATH}/")
-    print(f"{'='*50}")
-
     summary = {
-        "total_segments":  int(len(X)),
-        "afib_segments":   int(np.sum(y==1)),
-        "normal_segments": int(np.sum(y==0)),
-        "afib_pct":        float(np.mean(y==1)*100),
-        "normal_pct":      float(np.mean(y==0)*100),
-        "shape":           list(X.shape),
+        "total_segments": int(len(X)),
+        "afib_segments": int(np.sum(y == 1)),
+        "normal_segments": int(np.sum(y == 0)),
+        "afib_pct": float(np.mean(y == 1) * 100),
+        "normal_pct": float(np.mean(y == 0) * 100),
+        "shape": list(X.shape),
+        "sample_rate": TARGET_FS,
+        "segment_length_sec": SEG_LEN,
         "skipped_records": skipped,
-        "sample_rate":     SAMPLE_RATE,
-        "seg_len_sec":     SEG_LEN,
-        "timestamp":       datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
+
     with open(OUT_PATH / "preprocess_summary.json", "w") as f:
         json.dump(summary, f, indent=2)
-    print(f"Summary saved → {OUT_PATH}/preprocess_summary.json")
+
+    print("\nDONE")
+    print(f"Saved {len(X)} segments")
+    print(f"Shape: {X.shape}")
+
 
 if __name__ == "__main__":
     preprocess_ltaf()
