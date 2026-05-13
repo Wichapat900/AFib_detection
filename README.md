@@ -76,10 +76,10 @@ https://physionet.org/content/ltafdb/1.0.0/
 
 ## ✅ Records Used (23 Records)
 
-04015, 04043, 04048, 04126, 04746, 04908, 04936,  
-05091, 05121, 05261, 06426, 06453, 06995, 07162,  
-07859, 07879, 07910, 08215, 08219, 08378, 08455,  
-08465, 08475
+04015, 04048, 04126, 04746, 04908, 04936, 05091,
+05121, 05261, 06426, 06453, 06995, 07162, 07859,
+07879, 07910, 08215, 08219, 08378, 08455, 08465,
+08475
 
 ---
 
@@ -91,6 +91,7 @@ https://physionet.org/content/ltafdb/1.0.0/
 | 03665  | Signal unavailable     |
 | 08405  | Unreadable data blocks |
 | 08434  | Unreadable data blocks |
+| 04043  | Bad blocks             |
 
 > Note: Record `04043` contains partially corrupted blocks but remains usable for visualization/testing.
 
