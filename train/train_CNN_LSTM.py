@@ -3,7 +3,7 @@ train_cnn_lstm.py -- Train AFibCNNLSTM on LTAF, test on MITB
 """
 from dataset import get_dataloaders
 from model import AFibCNNLSTM
-from trainer import train
+from train.trainer import train
 
 EPOCHS     = 30
 BATCH_SIZE = 64

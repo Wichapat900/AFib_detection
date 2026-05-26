@@ -3,7 +3,7 @@ train_cnn.py — Train AFibCNN on LTAF, test on MITB
 """
 from dataset import get_dataloaders
 from model import AFibCNN
-from trainer import train
+from train.trainer import train
 
 EPOCHS     = 30
 BATCH_SIZE = 64
