@@ -1,4 +1,7 @@
-# Python
+# ============================================================
+# PYTHON
+# ============================================================
+
 __pycache__/
 *.py[cod]
 *.pyo
@@ -9,62 +12,62 @@ dist/
 build/
 .eggs/
 
-# Virtual environments
+# ============================================================
+# VIRTUAL ENVIRONMENTS
+# ============================================================
+
 venv/
 env/
 .env
-.venv
+.venv/
 
-# Data — raw and processed (too large for git)
+# ============================================================
+# DATASETS (DO NOT PUSH)
+# ============================================================
+
 data/raw/
 data/mitb/
 data/ltaf/
 data/processed/
 data/history/
 
-# Model files (large binaries)
-models/saved/*.pkl
-models/saved/*.joblib
-models/results/*.png
-
-# Demo numpy files
-demo_afib.npy
-demo_normal.npy
-
-# PhysioNet database folders
 MIT-BIH Atrial Fibrillation Database V1.0.0/
 Long Term AF Database V1.0.0/
 
-# OS
-.DS_Store
-Thumbs.db
+# ============================================================
+# LARGE ARRAYS / TEMP RESULTS
+# ============================================================
 
-# VSCode
-.vscode/
+*.npy
 
-# Jupyter
+results/*.png
+results/*.jpg
+results/*.jpeg
+
+# ============================================================
+# JUPYTER
+# ============================================================
+
 .ipynb_checkpoints/
 *.ipynb
 
-# Streamlit
+# ============================================================
+# STREAMLIT
+# ============================================================
+
 .streamlit/secrets.toml
 
-# Logs
+# ============================================================
+# OS / EDITOR
+# ============================================================
+
+.DS_Store
+Thumbs.db
+.vscode/
+
+# ============================================================
+# LOGS
+# ============================================================
+
 *.log
 *.out
-
-# Models
-models/*.pth
-models/*.joblib
-models/*.onnx
-
-# Results
-results/*.npy
-results/*.png
-results/*.jpg
-
-# Arrays
-*.npy
-
-# CatBoost
-*catboost_info
