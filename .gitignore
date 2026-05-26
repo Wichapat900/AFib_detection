@@ -55,7 +55,6 @@ Thumbs.db
 
 # Models
 models/*.pth
-models/*.pkl
 models/*.joblib
 models/*.onnx
 
