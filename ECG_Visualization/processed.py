@@ -44,8 +44,8 @@ AFDB_PATH = Path("MIT-BIH Atrial Fibrillation Database V1.0.0")
 LTAF_PATH = Path("Long Term AF Database V1.0.0")
 
 # Choose dataset + record
-DATASET = "afdb"   # "afdb" or "ltaf"
-RECORD_ID = "04936"
+DATASET = "mitb"   # "afdb" or "ltaf"
+RECORD_ID = "03"
 
 # Initial viewing window
 WINDOW_SECONDS = 5

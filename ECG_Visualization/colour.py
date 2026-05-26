@@ -13,13 +13,14 @@ Features
 ✓ Adjustable window size
 ✓ Automatic filtering
 ✓ Multi-lead support
-✓ Color-coded annotations
+✓ Color-coded rhythm annotations
+✓ Works for BOTH AFDB and LTAF
 
 Colors
 ------
-Green  = Normal
+Green  = Normal Rhythm
 Red    = AFib
-Orange = Transition / Other
+Orange = Excluded / Other Rhythms
 
 Controls
 --------
@@ -35,6 +36,7 @@ q            -> quit
 import wfdb
 import numpy as np
 import matplotlib.pyplot as plt
+
 from pathlib import Path
 from scipy.signal import butter, filtfilt
 
@@ -45,16 +47,61 @@ from scipy.signal import butter, filtfilt
 AFDB_PATH = Path("MIT-BIH Atrial Fibrillation Database V1.0.0")
 LTAF_PATH = Path("Long Term AF Database V1.0.0")
 
-DATASET = "afdb"   # "afdb" or "ltaf"
-RECORD_ID = "04936"
+# Choose dataset
+DATASET = "ltaf"     # "afdb" or "ltaf"
+
+# Example records:
+# AFDB -> "04015"
+# LTAF -> "00"
+
+RECORD_ID = "01"
 
 WINDOW_SECONDS = 5
+
+# ─────────────────────────────────────────────
+# RHYTHM DEFINITIONS
+# ─────────────────────────────────────────────
+
+AFIB_LABELS = {
+    "(AFIB",
+    "AFIB"
+}
+
+NORMAL_LABELS = {
+    "(N",
+    "N",
+    "(NSR",
+    "NSR"
+}
+
+EXCLUDED_RHYTHMS = {
+
+    "(AFL", "AFL",
+    "(VT", "VT",
+    "(SVTA", "SVTA",
+    "(B", "B",
+    "(SBR", "SBR",
+    "(T", "T",
+    "(IVR", "IVR",
+    "(AB", "AB",
+
+    "MISSB",
+    "PSE",
+    "MB",
+    "M"
+}
 
 # ─────────────────────────────────────────────
 # FILTER
 # ─────────────────────────────────────────────
 
-def bandpass_filter(signal, fs, lowcut=0.5, highcut=25.0, order=4):
+def bandpass_filter(
+    signal,
+    fs,
+    lowcut=0.5,
+    highcut=25.0,
+    order=4
+):
 
     nyq = fs / 2
 
@@ -63,7 +110,11 @@ def bandpass_filter(signal, fs, lowcut=0.5, highcut=25.0, order=4):
     low = lowcut / nyq
     high = highcut / nyq
 
-    b, a = butter(order, [low, high], btype="band")
+    b, a = butter(
+        order,
+        [low, high],
+        btype="band"
+    )
 
     return filtfilt(b, a, signal)
 
@@ -75,6 +126,7 @@ def load_record(dataset, record_id):
 
     if dataset.lower() == "afdb":
         db_path = AFDB_PATH
+
     else:
         db_path = LTAF_PATH
 
@@ -82,17 +134,18 @@ def load_record(dataset, record_id):
 
     record = wfdb.rdrecord(rec_path)
 
-    # annotation file
     ann = wfdb.rdann(rec_path, "atr")
 
-    print("=" * 50)
-    print(f"Dataset : {dataset}")
-    print(f"Record  : {record_id}")
-    print(f"Channels: {record.sig_name}")
-    print(f"Shape   : {record.p_signal.shape}")
-    print(f"FS      : {record.fs}")
-    print(f"Annotations loaded: {len(ann.sample)}")
-    print("=" * 50)
+    print("=" * 60)
+
+    print(f"Dataset            : {dataset}")
+    print(f"Record             : {record_id}")
+    print(f"Channels           : {record.sig_name}")
+    print(f"Shape              : {record.p_signal.shape}")
+    print(f"Sampling Frequency : {record.fs}")
+    print(f"Annotations Loaded : {len(ann.sample)}")
+
+    print("=" * 60)
 
     return record, ann
 
@@ -102,32 +155,56 @@ def load_record(dataset, record_id):
 
 def build_labels(signal_length, ann):
 
-    labels = np.zeros(signal_length)
+    # 0 = Normal
+    # 1 = AFib
+    # 2 = Excluded / Other
+
+    labels = np.full(
+        signal_length,
+        2,
+        dtype=np.int8
+    )
 
     samples = ann.sample
     notes = ann.aux_note
 
-    current_label = 0
+    current_label = 2
 
     for i in range(len(samples) - 1):
 
         start = samples[i]
         end = samples[i + 1]
 
-        note = notes[i].strip()
+        note = notes[i]
 
-        # AFib rhythm
-        if "(AFIB" in note:
+        # clean weird WFDB strings
+        note = (
+            note
+            .strip()
+            .replace("\x00", "")
+        )
+
+        # ─────────────────────────
+        # AFIB
+        # ─────────────────────────
+
+        if any(x in note for x in AFIB_LABELS):
 
             current_label = 1
 
-        # Normal rhythm
-        elif "(N" in note:
+        # ─────────────────────────
+        # NORMAL
+        # ─────────────────────────
+
+        elif any(x in note for x in NORMAL_LABELS):
 
             current_label = 0
 
-        # Other rhythms
-        else:
+        # ─────────────────────────
+        # EXCLUDED / OTHER
+        # ─────────────────────────
+
+        elif any(x in note for x in EXCLUDED_RHYTHMS):
 
             current_label = 2
 
@@ -136,7 +213,7 @@ def build_labels(signal_length, ann):
     return labels
 
 # ─────────────────────────────────────────────
-# VIEWER
+# ECG VIEWER
 # ─────────────────────────────────────────────
 
 class ECGViewer:
@@ -155,16 +232,20 @@ class ECGViewer:
 
         self.window_seconds = WINDOW_SECONDS
 
-        self.window_samples = int(self.window_seconds * self.fs)
+        self.window_samples = int(
+            self.window_seconds * self.fs
+        )
 
         self.start = 0
 
         self.lead = 0
 
-        self.fig, self.ax = plt.subplots(figsize=(16,5))
+        self.fig, self.ax = plt.subplots(
+            figsize=(16, 5)
+        )
 
         self.fig.canvas.mpl_connect(
-            'key_press_event',
+            "key_press_event",
             self.on_key
         )
 
@@ -195,9 +276,10 @@ class ECGViewer:
 
         self.ax.clear()
 
-        end = self.start + self.window_samples
-
-        end = min(end, self.total_samples)
+        end = min(
+            self.start + self.window_samples,
+            self.total_samples
+        )
 
         segment = self.signal[
             self.start:end,
@@ -208,7 +290,10 @@ class ECGViewer:
             self.start:end
         ]
 
-        # filter ECG
+        # ─────────────────────────
+        # FILTER ECG
+        # ─────────────────────────
+
         filtered = bandpass_filter(
             segment,
             self.fs,
@@ -216,12 +301,16 @@ class ECGViewer:
             highcut=25
         )
 
-        # REAL recording time
-        time = np.arange(self.start, end) / self.fs
+        # REAL RECORDING TIME
 
-        # ─────────────────────────────
+        time = np.arange(
+            self.start,
+            end
+        ) / self.fs
+
+        # ─────────────────────────
         # PLOT COLORED SEGMENTS
-        # ─────────────────────────────
+        # ─────────────────────────
 
         i = 0
 
@@ -246,9 +335,9 @@ class ECGViewer:
 
             i = j
 
-        # ─────────────────────────────
+        # ─────────────────────────
         # TITLES / LABELS
-        # ─────────────────────────────
+        # ─────────────────────────
 
         self.ax.set_title(
             f"Record {self.record.record_name} | "
@@ -256,14 +345,17 @@ class ECGViewer:
             f"{self.start/self.fs:.1f}s → "
             f"{end/self.fs:.1f}s | "
             f"Window: {self.window_seconds}s"
-)
+        )
 
         self.ax.set_xlabel("Time (s)")
         self.ax.set_ylabel("Amplitude")
 
         self.ax.grid(True)
 
-        # autoscale
+        # ─────────────────────────
+        # ECG AUTOSCALE
+        # ─────────────────────────
+
         ymin = np.min(filtered)
         ymax = np.max(filtered)
 
@@ -274,10 +366,30 @@ class ECGViewer:
             ymax + pad
         )
 
-        # legend
-        self.ax.plot([], [], color="green", label="Normal")
-        self.ax.plot([], [], color="red", label="AFib")
-        self.ax.plot([], [], color="orange", label="Transition/Other")
+        # ─────────────────────────
+        # LEGEND
+        # ─────────────────────────
+
+        self.ax.plot(
+            [],
+            [],
+            color="green",
+            label="Normal"
+        )
+
+        self.ax.plot(
+            [],
+            [],
+            color="red",
+            label="AFib"
+        )
+
+        self.ax.plot(
+            [],
+            [],
+            color="orange",
+            label="Excluded / Other"
+        )
 
         self.ax.legend(loc="upper right")
 
@@ -292,24 +404,28 @@ class ECGViewer:
         step = int(self.window_samples * 0.5)
 
         # move forward
-        if event.key == 'right':
+
+        if event.key == "right":
 
             self.start += step
 
             self.start = min(
                 self.start,
-                self.total_samples - self.window_samples
+                self.total_samples
+                - self.window_samples
             )
 
         # move backward
-        elif event.key == 'left':
+
+        elif event.key == "left":
 
             self.start -= step
 
             self.start = max(self.start, 0)
 
         # zoom in
-        elif event.key == 'up':
+
+        elif event.key == "up":
 
             self.window_seconds = max(
                 1,
@@ -321,7 +437,8 @@ class ECGViewer:
             )
 
         # zoom out
-        elif event.key == 'down':
+
+        elif event.key == "down":
 
             self.window_seconds += 1
 
@@ -330,18 +447,21 @@ class ECGViewer:
             )
 
         # lead 0
-        elif event.key == '1':
+
+        elif event.key == "1":
 
             self.lead = 0
 
         # lead 1
-        elif event.key == '2':
+
+        elif event.key == "2":
 
             if self.signal.shape[1] > 1:
                 self.lead = 1
 
         # quit
-        elif event.key == 'q':
+
+        elif event.key == "q":
 
             plt.close(self.fig)
             return
