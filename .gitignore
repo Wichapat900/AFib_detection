@@ -52,3 +52,17 @@ Thumbs.db
 # Logs
 *.log
 *.out
+
+# Models
+models/*.pth
+models/*.pkl
+models/*.joblib
+models/*.onnx
+
+# Results
+results/*.npy
+results/*.png
+results/*.jpg
+
+# Arrays
+*.npy
