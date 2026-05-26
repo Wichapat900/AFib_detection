@@ -66,3 +66,6 @@ results/*.jpg
 
 # Arrays
 *.npy
+
+# CatBoost
+catboost_info
