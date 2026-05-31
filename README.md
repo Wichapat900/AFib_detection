@@ -1,151 +1,104 @@
-# 🫀 AFib Detection
+# 🫀 AFib Detection Web App
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
-![Status](https://img.shields.io/badge/Status-In%20Progress-yellow)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.35+-red.svg)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Dataset](https://img.shields.io/badge/Data-PhysioNet-orange)
 
-A machine learning project focused on detecting **Atrial Fibrillation (AFib)** from long-term ECG recordings using publicly available datasets.
+A **Streamlit web application** for detecting Atrial Fibrillation (AFib) from ECG signals. Upload an ECG file, visualize the signal, extract HRV features, and get an AFib prediction — all in the browser.
 
 ---
 
-## 📌 Overview
+## 🚀 Quick Start
 
-This project aims to build an AFib detection model by combining and preprocessing multiple ECG datasets with different characteristics (sampling rates, durations, etc.).
+```bash
+# Install dependencies
+pip install -r requirements.txt
 
-Key challenges addressed:
-
-- Merging datasets with **different sampling frequencies (128 Hz vs 250 Hz)**
-- Handling **long-duration ECG recordings (10–25 hours)**
-- Working with **noisy real-world signals**
-- Simplifying labels into a **binary classification task (AFib vs Normal)**
-
----
-
-## WEEK 4 progress
-
-## 📂 Data Sources
-
-This project uses two datasets from PhysioNet:
-
-### 1. MIT-BIH Atrial Fibrillation Database
-
-https://physionet.org/content/afdb/1.0.0/
-
-### 2. Long-Term Atrial Fibrillation Database
-
-https://physionet.org/content/ltafdb/1.0.0/
+# Run the app
+streamlit run app.py
+```
 
 ---
 
-## 🧠 Dataset Details
+## 🖥️ What the App Does
 
-### MIT-BIH Atrial Fibrillation Database
+Upload a raw ECG segment (`.npy` or `.csv`) or use a built-in synthetic demo, and the app will:
 
-#### ✅ Records Used
-
-04015, 04043, 04048, 04126, 04746, 04908, 04936,
-05121, 05261, 06426, 06453, 06995, 07162, 07859,
-07879, 07910, 08215, 08219, 08378, 08455
-
-#### ❌ Excluded Records
-
-00735, 03665, 08405, 08434, 08465, 08475, 05091
-
-#### ⚠️ Minor problem (Used with Caution)
-
-04043
-
-#### 🏷️ Labels Used
-
-| Class  | Labels           |
-| ------ | ---------------- |
-| AFib   | (AFIB, AFIB      |
-| Normal | (N, N, (NSR, NSR |
-
-#### 🚫 Ignored Labels
-
-- Atrial Flutter: (AFL, AFL
-- Junctional Rhythm: (J, J
+1. **Preprocess** the signal — bandpass filter (0.5–40 Hz) + z-score normalization
+2. **Detect R-peaks** — adaptive threshold with prominence filtering
+3. **Extract 24 HRV features** — time-domain, frequency-domain, and Poincaré metrics
+4. **Predict AFib** — HRV-based heuristic (always available) or your trained deep model (optional)
+5. **Visualize** results across four interactive tabs
 
 ---
 
-## WEEK 5 progress
+## 📊 Visualizations
 
-# Record Information & Data Visualization
-
-## ✅ Records Used (23 Records)
-
-04015, 04048, 04126, 04746, 04908, 04936, 05091,
-05121, 05261, 06426, 06453, 06995, 07162, 07859,
-07879, 07910, 08215, 08219, 08378, 08455, 08465,
-08475
+| Tab              | Content                                                      |
+| ---------------- | ------------------------------------------------------------ |
+| 📈 ECG Signal    | Preprocessed waveform with R-peak markers                    |
+| 💓 RR Tachogram  | Beat-to-beat interval over time                              |
+| 🌀 Poincaré Plot | RRₙ vs RRₙ₊₁ scatter — classic AFib irregularity view        |
+| 📊 HRV Features  | Radar chart + full feature table with units and descriptions |
 
 ---
 
-## ❌ Excluded Records
+## 🧠 HRV Features Extracted (24 total)
 
-| Record | Reason                 |
-| ------ | ---------------------- |
-| 00735  | Signal unavailable     |
-| 03665  | Signal unavailable     |
-| 08405  | Unreadable data blocks |
-| 08434  | Unreadable data blocks |
-| 04043  | Bad blocks             |
+**Time domain:** mean/median RR, SDNN, RMSSD, pNN50, CV, HR stats, successive differences
 
-> Note: Record `04043` contains partially corrupted blocks but remains usable for visualization/testing.
+**Poincaré:** SD1, SD2, SD ratio
+
+**Frequency domain:** LF/HF ratio, LF norm, HF norm, dominant frequency
+
+**Other:** skewness, kurtosis, IQR, irregularity score, beat count
 
 ---
 
-# Dataset File Explanation
+## 🤖 Models Supported
 
-| File   | Description                                                                            |
-| ------ | -------------------------------------------------------------------------------------- |
-| `.dat` | Raw ECG waveform data                                                                  |
-| `.hea` | Metadata (record name, number of leads, sampling frequency, signal length, start time) |
-| `.atr` | Rhythm annotations and labels (e.g. AFib, Normal rhythm)                               |
-| `.qrs` | Detected R-peak locations                                                              |
+| Mode          | Requires                         |
+| ------------- | -------------------------------- |
+| HRV heuristic | Nothing — works out of the box   |
+| CNN           | PyTorch + trained `.pth` weights |
+| LSTM          | PyTorch + trained `.pth` weights |
+| RNN           | PyTorch + trained `.pth` weights |
+| CNN + LSTM    | PyTorch + trained `.pth` weights |
 
----
-
-# Planned Input
-
-- Live ECG signal stream
+To use a deep model, check **"Use deep model"** in the sidebar and point it to your weights file (e.g. `models/best_model.pth`).
 
 ---
 
-# Planned Preprocessing Pipeline
+## 📂 Input Formats
 
-- Bandpass filtering for noise reduction
-- Resampling to **128 Hz**
-- Signal normalization
-- Window segmentation
+| Format | Details                                                                 |
+| ------ | ----------------------------------------------------------------------- |
+| `.npy` | 1D array `(3840,)` or 2D `(N_windows, 3840)` — select window in sidebar |
+| `.csv` | One signal per row, or a single 1D signal                               |
+| Demo   | Built-in synthetic Normal or AFib ECG — no upload needed                |
 
----
-
-# Planned Output
-
-- AFib probability (%)
-- SHAP-based explainability
-- Explainable AI visualization
+> Signals should be sampled at **128 Hz** (30-second windows = 3840 samples). Other sampling rates can be set in the sidebar.
 
 ---
 
-# Current Challenges
+## 📦 Dependencies
 
-The Long-Term AF Database (LTAFDB) contains substantial noise and motion artifacts due to long-duration Holter monitor recordings.
+streamlit>=1.35
+numpy>=1.24
+scipy>=1.11
+pandas>=2.0
+plotly>=5.18
 
 ---
 
-# Future Training Plans
+## ⚠️ Disclaimer
 
-1. Patient-level data split
-2. 80 / 10 / 10 train-validation-test split
-3. 30-second windows with 50% overlap  
-   (may reduce overlap to ~25%)
-4. Compare multiple models:
-   - XGBoost (XGB)
-   - Random Forest (RF)
-   - CNN
-   - LSTM
-   - CNN + LSTM hybrid
+This tool is a **research prototype** and is not intended for clinical use. Do not use for medical diagnosis.
+
+---
+
+## 📡 Data Sources
+
+- [MIT-BIH Atrial Fibrillation Database](https://physionet.org/content/afdb/1.0.0/)
+- [Long-Term Atrial Fibrillation Database](https://physionet.org/content/ltafdb/1.0.0/)
