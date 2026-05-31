@@ -1,8 +1,14 @@
-streamlit>=1.35.0
-numpy>=1.24
-scipy>=1.11
-pandas>=2.0
-plotly>=5.18
-torch>=2.0           # optional — only needed for CNN/LSTM inference
-xgboost>=2.0
-catboost>=1.2
+streamlit
+numpy
+pandas
+plotly
+scipy
+scikit-learn
+xgboost
+catboost
+joblib
+torch
+torchvision
+gdown
+wfdb
+shap
