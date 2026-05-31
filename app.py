@@ -2,6 +2,7 @@
 app.py — AFib Detection Web App
 ================================
 Streamlit app for detecting Atrial Fibrillation from ECG signals.
+Restyled to match CardioSense aesthetic.
 
 Models supported:
   - XGBoost  (HRV features — loads models/xgb.pkl)
@@ -17,7 +18,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from pathlib import Path
-import io, pickle
+import io, pickle, time
 
 try:
     import joblib
@@ -29,7 +30,6 @@ from scipy.signal import find_peaks, butter, filtfilt, welch
 from scipy.stats import skew, kurtosis
 from scipy.interpolate import interp1d
 
-# ── optional heavy deps ─────────────────────────────────────────────────────
 try:
     import torch
     TORCH_AVAILABLE = True
@@ -59,40 +59,81 @@ st.set_page_config(
 )
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CUSTOM CSS
+# COLOR PALETTE  (mirrors CardioSense)
 # ═══════════════════════════════════════════════════════════════════════════
-st.markdown("""
+COLORS = {
+    "bg":           "#050b12",
+    "panel":        "#080f18",
+    "panel2":       "#0c1620",
+    "border":       "#1a2d3d",
+    "border_light": "#243d55",
+    "text":         "#c8dde8",
+    "text_mid":     "#7a9bb8",
+    "text_dim":     "#3a5a78",
+    "accent":       "#2ab5b5",
+    "accent2":      "#1e6fa8",
+    "white":        "#ffffff",
+    "success":      "#1fcc7a",
+    "danger":       "#f04060",
+    "warn":         "#f4a124",
+    "ecg_bg":       "#fff8f0",
+    "ecg_grid_maj": "rgba(210,50,50,0.30)",
+    "ecg_grid_min": "rgba(210,50,50,0.10)",
+    "ecg_normal":   "#1a5fa8",
+    "ecg_afib":     "#d03030",
+}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CSS  (matches CardioSense)
+# ═══════════════════════════════════════════════════════════════════════════
+CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;800&display=swap');
-html, body, [class*="css"] { font-family: 'Syne', sans-serif; }
-code, .stCode, .stMarkdown code { font-family: 'DM Mono', monospace !important; }
-.stApp { background: #0b0f1a; color: #e0e6f0; }
-section[data-testid="stSidebar"] { background: #0f1424; border-right: 1px solid #1e2740; }
-section[data-testid="stSidebar"] * { color: #c8d4e8 !important; }
-.result-afib {
-    background: linear-gradient(135deg,#3d0a0a,#1a0505);
-    border: 2px solid #e53e3e; border-radius: 12px;
-    padding: 1.6rem 2rem; text-align: center;
-}
-.result-normal {
-    background: linear-gradient(135deg,#0a2e1a,#051210);
-    border: 2px solid #38a169; border-radius: 12px;
-    padding: 1.6rem 2rem; text-align: center;
-}
-.result-title { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.02em; margin: 0.3rem 0; }
-.prob-bar-wrap { background:#1e2740; border-radius:99px; height:10px; overflow:hidden; margin:0.5rem 0; }
-.prob-bar-fill  { height:100%; border-radius:99px; }
-h1,h2,h3 { font-family:'Syne',sans-serif !important; letter-spacing:-0.02em; }
-.stButton>button { background:#2563eb; color:white; border:none; border-radius:8px;
-    font-family:'Syne',sans-serif; font-weight:600; padding:0.5rem 1.4rem; }
-.stButton>button:hover { background:#1d4ed8; }
-.disclaimer { background:#1a1f30; border-left:3px solid #f6ad55; border-radius:4px;
-    padding:0.7rem 1rem; font-size:0.82rem; color:#a0aec0; margin-top:0.5rem; }
-.model-badge { display:inline-block; background:#1e2740; border:1px solid #2a3558;
-    border-radius:6px; padding:0.2rem 0.6rem; font-size:0.75rem;
-    font-family:'DM Mono',monospace; color:#63b3ed; margin-right:4px; }
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Sora:wght@600;700&display=swap');
+  * { box-sizing: border-box; }
+  .stApp { background: #050b12; font-family: 'Inter', sans-serif; color: #c8dde8; }
+  .main .block-container { padding: 1.5rem 2rem !important; max-width: 100% !important; }
+
+  [data-testid="stSidebar"] { background: #080f18 !important; border-right: 1px solid #1a2d3d !important; }
+  [data-testid="stSidebar"] * { color: #c8dde8 !important; }
+  [data-testid="stSidebar"] hr { border-color: #1a2d3d !important; }
+  [data-testid="stSidebar"] .stRadio label span { font-size: 0.83rem !important; color: #7a9bb8 !important; }
+  [data-testid="stSidebar"] .stSelectbox label { font-size: 0.75rem !important; color: #3a5a78 !important; text-transform: uppercase !important; letter-spacing: 0.08em !important; }
+  [data-testid="stSidebar"] [data-baseweb="select"] { background: #0c1620 !important; border-color: #1a2d3d !important; }
+  [data-testid="stSidebar"] [data-baseweb="select"] * { background: #0c1620 !important; color: #c8dde8 !important; }
+
+  .stTabs [data-baseweb="tab-list"] { background: #080f18; border-bottom: 1px solid #1a2d3d; padding: 0 1.5rem; gap: 0; }
+  .stTabs [data-baseweb="tab"] { color: #7a9bb8 !important; font-family: 'Inter', sans-serif !important; font-size: 0.78rem !important; font-weight: 500 !important; letter-spacing: 0.07em !important; text-transform: uppercase !important; padding: 0.9rem 1.4rem !important; border-bottom: 2px solid transparent !important; margin-bottom: -1px !important; background: transparent !important; }
+  .stTabs [aria-selected="true"] { color: #2ab5b5 !important; border-bottom: 2px solid #2ab5b5 !important; }
+  .stTabs [data-baseweb="tab-panel"] { padding: 1.5rem 2rem !important; background: #050b12; }
+
+  [data-testid="metric-container"] { background: #080f18; border: 1px solid #1a2d3d; border-radius: 10px; padding: 1rem !important; }
+  [data-testid="stMetricValue"] { font-family: 'JetBrains Mono', monospace !important; font-size: 1.55rem !important; color: #ffffff !important; font-weight: 500 !important; }
+  [data-testid="stMetricLabel"] { font-size: 0.65rem !important; font-weight: 600 !important; letter-spacing: 0.1em !important; text-transform: uppercase !important; color: #3a5a78 !important; }
+
+  .cs-alert { border-radius: 10px; padding: 1rem 1.3rem; margin: 0.6rem 0; display: flex; align-items: flex-start; gap: 0.8rem; }
+  .cs-alert-afib     { background: rgba(240,64,96,0.1);  border: 1px solid rgba(240,64,96,0.4);  border-left: 4px solid #f04060; }
+  .cs-alert-normal   { background: rgba(31,204,122,0.08); border: 1px solid rgba(31,204,122,0.3); border-left: 4px solid #1fcc7a; }
+  .cs-alert-borderline { background: rgba(244,161,36,0.08); border: 1px solid rgba(244,161,36,0.3); border-left: 4px solid #f4a124; }
+
+  .cs-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #3a5a78; margin-bottom: 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid #1a2d3d; }
+  .cs-card  { background: #080f18; border: 1px solid #1a2d3d; border-radius: 12px; padding: 1.4rem; margin-bottom: 0.8rem; }
+  .cs-badge { display: inline-flex; align-items: center; gap: 5px; background: #0c1620; border: 1px solid #1a2d3d; border-radius: 16px; padding: 3px 10px; font-size: 0.72rem; font-family: 'JetBrains Mono', monospace; color: #7a9bb8; margin: 2px 0; }
+
+  .stButton>button { background: linear-gradient(135deg, #1e6fa8, #2ab5b5) !important; color: white !important; border: none !important; border-radius: 8px !important; font-family: 'Inter', sans-serif !important; font-weight: 600 !important; padding: 0.5rem 1.4rem !important; }
+  .stButton>button:hover { opacity: 0.9; }
+  .stDownloadButton > button { background: linear-gradient(135deg, #1e6fa8, #2ab5b5) !important; color: white !important; border: none !important; border-radius: 8px !important; font-family: 'Inter', sans-serif !important; font-weight: 600 !important; font-size: 0.8rem !important; }
+  [data-testid="stFileUploader"] { background: #080f18; border: 1.5px dashed #243d55; border-radius: 10px; }
+  .stDataFrame { border: 1px solid #1a2d3d !important; border-radius: 8px !important; overflow: hidden; }
+  .streamlit-expanderHeader { background: #080f18 !important; border: 1px solid #1a2d3d !important; border-radius: 8px !important; color: #c8dde8 !important; font-family: 'Inter', sans-serif !important; font-size: 0.82rem !important; }
+  .streamlit-expanderContent { background: #080f18 !important; border: 1px solid #1a2d3d !important; border-top: none !important; border-radius: 0 0 8px 8px !important; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: #050b12; }
+  ::-webkit-scrollbar-thumb { background: #243d55; border-radius: 3px; }
+  code { background: #0c1620 !important; color: #2ab5b5 !important; border: 1px solid #1a2d3d !important; border-radius: 4px !important; padding: 1px 5px !important; }
+  pre  { background: #0c1620 !important; border: 1px solid #1a2d3d !important; border-radius: 8px !important; }
 </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(CSS, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CONSTANTS
@@ -204,11 +245,10 @@ def extract_hrv(signal, fs=FS):
     ], dtype=np.float32)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# MODEL LOADERS  (cached)
+# MODEL LOADERS
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _load_pkl(path: str):
-    """Load any .pkl model file using joblib (preferred) or pickle."""
     p = Path(path)
     if not p.exists():
         return None
@@ -257,17 +297,17 @@ def load_deep_model(model_name: str, weights_path: str):
 # INFERENCE
 # ═══════════════════════════════════════════════════════════════════════════
 
-def predict_xgb(model, features: np.ndarray):
+def predict_xgb(model, features):
     x = features.reshape(1, -1)
     prob = float(model.predict_proba(x)[0][1])
     return ("AFib" if prob >= 0.5 else "Normal"), prob
 
-def predict_catboost(model, features: np.ndarray):
+def predict_catboost(model, features):
     x = features.reshape(1, -1)
     prob = float(model.predict_proba(x)[0][1])
     return ("AFib" if prob >= 0.5 else "Normal"), prob
 
-def predict_deep(model, signal: np.ndarray):
+def predict_deep(model, signal):
     sig = signal.copy().astype(np.float32)
     sig = sig[:WINDOW] if len(sig) >= WINDOW else np.pad(sig, (0, WINDOW-len(sig)))
     x = torch.tensor(sig).unsqueeze(0).unsqueeze(0)
@@ -275,7 +315,7 @@ def predict_deep(model, signal: np.ndarray):
         probs = torch.softmax(model(x), dim=1).numpy()[0]
     return ("AFib" if probs[1] >= 0.5 else "Normal"), float(probs[1])
 
-def hrv_heuristic(features: np.ndarray):
+def hrv_heuristic(features):
     feat = dict(zip(FEATURE_NAMES, features))
     score = 0.0; reasons = {}
     sdnn_n  = min(feat["sdnn"]/150.0, 1.0);      reasons["SDNN (variability)"]  = sdnn_n;  score += sdnn_n*0.25
@@ -310,49 +350,139 @@ def make_synthetic_ecg(afib=False, seed=42, fs=FS, duration_s=30):
     return bandpass_filter(ecg, fs).astype(np.float32)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# PLOTS
+# PLOTS  — all use CardioSense palette
 # ═══════════════════════════════════════════════════════════════════════════
 
-def plot_ecg(signal, peaks, fs=FS, title="ECG Signal"):
-    t = np.arange(len(signal)) / fs
+def _base_layout(**kwargs):
+    return dict(
+        paper_bgcolor=COLORS["panel"],
+        plot_bgcolor=COLORS["panel"],
+        font=dict(color=COLORS["text"], family="Inter"),
+        margin=dict(l=55, r=20, t=45, b=45),
+        **kwargs,
+    )
+
+def plot_ecg(signal, peaks, fs=FS, title="ECG Signal", is_afib=False):
+    max_pts = 1500
+    step    = max(1, len(signal) // max_pts)
+    disp    = signal[::step]
+    t       = np.arange(len(disp)) * step / fs
+    tc      = COLORS["ecg_afib"] if is_afib else COLORS["ecg_normal"]
+
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=t, y=signal, mode="lines",
-        line=dict(color="#4299e1",width=1.2), name="ECG",
-        hovertemplate="t=%{x:.3f}s<br>amp=%{y:.3f}<extra></extra>"))
+    fig.add_trace(go.Scatter(
+        x=t, y=disp, mode="lines",
+        line=dict(color=tc, width=1.4), name="ECG",
+        hovertemplate="t=%{x:.3f}s<br>amp=%{y:.3f}<extra></extra>",
+    ))
     if len(peaks):
-        fig.add_trace(go.Scatter(x=t[peaks], y=signal[peaks], mode="markers",
-            marker=dict(color="#fc8181",size=7), name="R-peaks"))
-    fig.update_layout(title=dict(text=title,font=dict(color="#e0e6f0",size=15)),
-        paper_bgcolor="#111827", plot_bgcolor="#111827",
-        xaxis=dict(title="Time (s)",color="#8fa3cc",gridcolor="#1e2740",zeroline=False),
-        yaxis=dict(title="Amplitude (norm.)",color="#8fa3cc",gridcolor="#1e2740",zeroline=False),
-        legend=dict(bgcolor="#111827",font=dict(color="#8fa3cc")),
-        margin=dict(l=50,r=20,t=40,b=40), hovermode="x unified")
+        valid = peaks[(peaks >= 0) & (peaks < len(signal))]
+        fig.add_trace(go.Scatter(
+            x=valid / fs, y=signal[valid], mode="markers",
+            marker=dict(color=COLORS["danger"], size=8, symbol="circle",
+                        line=dict(color="white", width=1.5)),
+            name="R-peaks",
+        ))
+    fig.update_layout(
+        **_base_layout(height=300),
+        title=dict(text=title, font=dict(family="Inter", size=12, color=COLORS["text_mid"]), x=0.01),
+        plot_bgcolor=COLORS["ecg_bg"],
+        xaxis=dict(
+            title="Time (s)", color=COLORS["text_mid"],
+            gridcolor=COLORS["ecg_grid_maj"], gridwidth=1, dtick=0.4, showgrid=True,
+            minor=dict(dtick=0.08, gridcolor=COLORS["ecg_grid_min"], showgrid=True),
+            tickfont=dict(family="JetBrains Mono", size=10, color=COLORS["text_mid"]),
+        ),
+        yaxis=dict(
+            title="Amplitude (norm.)", color=COLORS["text_mid"],
+            gridcolor=COLORS["ecg_grid_maj"], gridwidth=1, dtick=0.5, showgrid=True,
+            minor=dict(dtick=0.1, gridcolor=COLORS["ecg_grid_min"], showgrid=True),
+            tickfont=dict(family="JetBrains Mono", size=10, color=COLORS["text_mid"]),
+        ),
+        legend=dict(bgcolor="rgba(15,31,53,0.8)", bordercolor=COLORS["border"],
+                    borderwidth=1, font=dict(family="Inter", size=11, color=COLORS["text"])),
+        hovermode="x unified",
+    )
     return fig
 
 def plot_rr(rr_ms):
+    m = float(np.mean(rr_ms))
     fig = go.Figure()
-    fig.add_trace(go.Scatter(y=rr_ms, mode="lines+markers",
-        line=dict(color="#68d391",width=1.5), marker=dict(size=4,color="#68d391")))
-    fig.add_hrect(y0=600,y1=1000,fillcolor="#2d6a4f",opacity=0.15,line_width=0,
-        annotation_text="Normal range",annotation_position="top left",
-        annotation=dict(font_color="#68d391",font_size=11))
-    fig.update_layout(title=dict(text="RR Interval Tachogram",font=dict(color="#e0e6f0",size=15)),
-        paper_bgcolor="#111827",plot_bgcolor="#111827",
-        xaxis=dict(title="Beat index",color="#8fa3cc",gridcolor="#1e2740"),
-        yaxis=dict(title="RR (ms)",color="#8fa3cc",gridcolor="#1e2740"),
-        margin=dict(l=50,r=20,t=40,b=40))
+    fig.add_trace(go.Scatter(
+        y=rr_ms, mode="lines+markers",
+        line=dict(color=COLORS["accent"], width=1.8),
+        marker=dict(color=COLORS["accent"], size=4),
+        hovertemplate="Beat %{x}<br>RR: %{y:.0f}ms<extra></extra>",
+    ))
+    fig.add_hline(y=m, line_dash="dash", line_color=COLORS["warn"], opacity=0.6,
+                  annotation_text=f"Mean: {m:.0f}ms",
+                  annotation_font=dict(color=COLORS["warn"], size=10))
+    fig.add_hrect(y0=600, y1=1000, fillcolor="rgba(31,204,122,0.05)", line_width=0,
+                  annotation_text="Normal range",
+                  annotation_position="top left",
+                  annotation=dict(font_color=COLORS["success"], font_size=11))
+    fig.update_layout(
+        **_base_layout(height=260),
+        title=dict(text="RR Interval Series", font=dict(family="Inter", size=12, color=COLORS["text_mid"])),
+        xaxis=dict(title="Beat #", color=COLORS["text_mid"], gridcolor=COLORS["border"],
+                   tickfont=dict(family="JetBrains Mono", size=10)),
+        yaxis=dict(title="RR (ms)", color=COLORS["text_mid"], gridcolor=COLORS["border"],
+                   tickfont=dict(family="JetBrains Mono", size=10)),
+    )
     return fig
 
-def plot_poincare(rr_ms):
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=rr_ms[:-1],y=rr_ms[1:],mode="markers",
-        marker=dict(color="#b794f4",size=4,opacity=0.7)))
-    fig.update_layout(title=dict(text="Poincaré Plot (RRₙ vs RRₙ₊₁)",font=dict(color="#e0e6f0",size=15)),
-        paper_bgcolor="#111827",plot_bgcolor="#111827",
-        xaxis=dict(title="RRₙ (ms)",color="#8fa3cc",gridcolor="#1e2740"),
-        yaxis=dict(title="RRₙ₊₁ (ms)",color="#8fa3cc",gridcolor="#1e2740"),
-        margin=dict(l=50,r=20,t=40,b=40))
+def plot_poincare(rr_ms, is_afib=False):
+    if len(rr_ms) < 4:
+        return go.Figure()
+    arr   = np.array(rr_ms)
+    color = COLORS["danger"] if is_afib else COLORS["accent"]
+    lim   = [max(300, arr.min()-50), min(2000, arr.max()+50)]
+    fig   = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=arr[:-1], y=arr[1:], mode="markers",
+        marker=dict(color=color, size=5, opacity=0.65,
+                    line=dict(color="rgba(255,255,255,0.1)", width=0.5)),
+        hovertemplate="RRn: %{x:.0f}ms<br>RRn+1: %{y:.0f}ms<extra></extra>",
+    ))
+    fig.add_trace(go.Scatter(
+        x=lim, y=lim, mode="lines",
+        line=dict(color=COLORS["border_light"], dash="dash", width=1), showlegend=False,
+    ))
+    fig.update_layout(
+        **_base_layout(height=260),
+        title=dict(text="Poincaré Plot", font=dict(family="Inter", size=12, color=COLORS["text_mid"])),
+        xaxis=dict(title="RRₙ (ms)", color=COLORS["text_mid"], gridcolor=COLORS["border"],
+                   range=lim, tickfont=dict(family="JetBrains Mono", size=10)),
+        yaxis=dict(title="RRₙ₊₁ (ms)", color=COLORS["text_mid"], gridcolor=COLORS["border"],
+                   range=lim, tickfont=dict(family="JetBrains Mono", size=10)),
+    )
+    return fig
+
+def plot_gauge(prob):
+    color = COLORS["success"] if prob < 0.35 else COLORS["warn"] if prob < 0.65 else COLORS["danger"]
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=prob * 100,
+        number=dict(suffix="%", font=dict(color=color, size=34, family="JetBrains Mono")),
+        gauge=dict(
+            axis=dict(range=[0,100], tickcolor=COLORS["text_dim"],
+                      tickfont=dict(color=COLORS["text_dim"], family="JetBrains Mono", size=9)),
+            bar=dict(color=color, thickness=0.28),
+            bgcolor=COLORS["panel2"],
+            borderwidth=1, bordercolor=COLORS["border"],
+            steps=[
+                dict(range=[0,   35], color="rgba(31,204,122,0.07)"),
+                dict(range=[35,  65], color="rgba(244,161,36,0.07)"),
+                dict(range=[65, 100], color="rgba(240,64,96,0.07)"),
+            ],
+            threshold=dict(line=dict(color=COLORS["danger"], width=2), value=65),
+        ),
+    ))
+    fig.update_layout(
+        paper_bgcolor=COLORS["panel"], height=190,
+        margin=dict(l=15, r=15, t=15, b=10),
+        font=dict(color=COLORS["text"]),
+    )
     return fig
 
 def plot_radar(features):
@@ -364,25 +494,28 @@ def plot_radar(features):
     vals   = [min(feat[k]/norms[k],1.0) for k in keys]
     fig = go.Figure(go.Scatterpolar(
         r=vals+[vals[0]], theta=labels+[labels[0]], fill="toself",
-        fillcolor="rgba(99,179,237,0.15)", line=dict(color="#63b3ed",width=2)))
+        fillcolor="rgba(42,181,181,0.12)", line=dict(color=COLORS["accent"], width=2),
+    ))
     fig.update_layout(
-        polar=dict(bgcolor="#111827",
-            radialaxis=dict(visible=True,range=[0,1],color="#8fa3cc",
-                            gridcolor="#1e2740",tickfont=dict(color="#8fa3cc")),
-            angularaxis=dict(color="#8fa3cc",gridcolor="#1e2740")),
-        paper_bgcolor="#111827",
-        title=dict(text="HRV Radar",font=dict(color="#e0e6f0",size=15)),
-        margin=dict(l=40,r=40,t=50,b=40), showlegend=False)
+        polar=dict(
+            bgcolor=COLORS["panel"],
+            radialaxis=dict(visible=True, range=[0,1], color=COLORS["text_mid"],
+                            gridcolor=COLORS["border"],
+                            tickfont=dict(color=COLORS["text_mid"])),
+            angularaxis=dict(color=COLORS["text_mid"], gridcolor=COLORS["border"]),
+        ),
+        paper_bgcolor=COLORS["panel"],
+        title=dict(text="HRV Radar", font=dict(family="Inter", size=12, color=COLORS["text_mid"])),
+        margin=dict(l=40,r=40,t=50,b=40), showlegend=False,
+    )
     return fig
 
 def plot_feature_importance_xgb(model):
-    """Bar chart of XGBoost feature importances."""
     try:
         scores = model.get_booster().get_fscore()
         if not scores:
             scores = dict(zip([f"f{i}" for i in range(len(FEATURE_NAMES))],
                               model.feature_importances_))
-        # map f0..f23 → feature names
         named = {}
         for k, v in scores.items():
             try:
@@ -392,32 +525,47 @@ def plot_feature_importance_xgb(model):
                 named[k] = v
         df = pd.DataFrame({"Feature":list(named.keys()),"Importance":list(named.values())})
         df = df.sort_values("Importance", ascending=True).tail(15)
-        fig = go.Figure(go.Bar(x=df["Importance"], y=df["Feature"], orientation="h",
-            marker_color="#63b3ed"))
-        fig.update_layout(title=dict(text="XGBoost Feature Importance",
-            font=dict(color="#e0e6f0",size=14)),
-            paper_bgcolor="#111827", plot_bgcolor="#111827",
-            xaxis=dict(color="#8fa3cc",gridcolor="#1e2740"),
-            yaxis=dict(color="#8fa3cc"),
-            margin=dict(l=10,r=20,t=40,b=30), height=380)
+        fig = go.Figure(go.Bar(
+            x=df["Importance"], y=df["Feature"], orientation="h",
+            marker_color=COLORS["accent"],
+            text=[f"{v:.0f}" for v in df["Importance"]],
+            textposition="outside",
+            textfont=dict(family="JetBrains Mono", size=10, color=COLORS["text_mid"]),
+        ))
+        fig.update_layout(
+            **_base_layout(height=380),
+            title=dict(text="XGBoost Feature Importance",
+                       font=dict(family="Inter", size=12, color=COLORS["text_mid"])),
+            xaxis=dict(color=COLORS["text_mid"], gridcolor=COLORS["border"],
+                       tickfont=dict(family="JetBrains Mono", size=10)),
+            yaxis=dict(color=COLORS["text"], tickfont=dict(family="Inter", size=11)),
+            margin=dict(l=130, r=60, t=45, b=40),
+        )
         return fig
     except Exception:
         return None
 
 def plot_feature_importance_cb(model):
-    """Bar chart of CatBoost feature importances."""
     try:
         imps = model.get_feature_importance()
         df = pd.DataFrame({"Feature": FEATURE_NAMES[:len(imps)], "Importance": imps})
         df = df.sort_values("Importance", ascending=True).tail(15)
-        fig = go.Figure(go.Bar(x=df["Importance"], y=df["Feature"], orientation="h",
-            marker_color="#f6ad55"))
-        fig.update_layout(title=dict(text="CatBoost Feature Importance",
-            font=dict(color="#e0e6f0",size=14)),
-            paper_bgcolor="#111827", plot_bgcolor="#111827",
-            xaxis=dict(color="#8fa3cc",gridcolor="#1e2740"),
-            yaxis=dict(color="#8fa3cc"),
-            margin=dict(l=10,r=20,t=40,b=30), height=380)
+        fig = go.Figure(go.Bar(
+            x=df["Importance"], y=df["Feature"], orientation="h",
+            marker_color=COLORS["warn"],
+            text=[f"{v:.1f}" for v in df["Importance"]],
+            textposition="outside",
+            textfont=dict(family="JetBrains Mono", size=10, color=COLORS["text_mid"]),
+        ))
+        fig.update_layout(
+            **_base_layout(height=380),
+            title=dict(text="CatBoost Feature Importance",
+                       font=dict(family="Inter", size=12, color=COLORS["text_mid"])),
+            xaxis=dict(color=COLORS["text_mid"], gridcolor=COLORS["border"],
+                       tickfont=dict(family="JetBrains Mono", size=10)),
+            yaxis=dict(color=COLORS["text"], tickfont=dict(family="Inter", size=11)),
+            margin=dict(l=130, r=60, t=45, b=40),
+        )
         return fig
     except Exception:
         return None
@@ -429,75 +577,104 @@ def plot_feature_importance_cb(model):
 def main():
     # ── SIDEBAR ──────────────────────────────────────────────────────────
     with st.sidebar:
-        st.markdown("## 🫀 AFib Detector")
-        st.markdown("---")
+        st.markdown(f"""
+        <div style='padding:1rem 0 0.8rem;'>
+          <div style='font-size:1.8rem; margin-bottom:6px;'>🫀</div>
+          <div style='font-family:"Sora",sans-serif; font-size:1.3rem; color:white;
+                      font-weight:700; line-height:1;'>AFib Detector</div>
+          <div style='font-family:"JetBrains Mono",monospace; font-size:0.55rem;
+                      color:{COLORS["text_dim"]}; letter-spacing:0.12em; margin-top:4px;'>
+            HRV ANALYSIS v1.0
+          </div>
+          <div style='font-size:0.7rem; color:{COLORS["text_mid"]}; margin-top:6px; line-height:1.5;'>
+            ECG Signal Analysis<br>AFib Detection Engine
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        st.markdown("### Input Source")
-        input_mode = st.radio("Choose input",
+        st.divider()
+        st.markdown(f'<div class="cs-label">Input Source</div>', unsafe_allow_html=True)
+        input_mode = st.radio(
+            "Input Source",
             ["Demo — Normal ECG","Demo — AFib ECG","Upload .npy file","Upload .csv file"],
-            label_visibility="collapsed")
+            label_visibility="collapsed",
+        )
 
-        st.markdown("---")
-        st.markdown("### Signal Settings")
-        fs_input = st.number_input("Sampling rate (Hz)", min_value=64, max_value=2000,
-                                   value=128, step=1)
-        window_index = st.number_input("Window index (multi-window files)",
-                                       min_value=0, value=0, step=1)
+        st.divider()
+        st.markdown(f'<div class="cs-label">Signal Settings</div>', unsafe_allow_html=True)
+        fs_input      = st.number_input("Sampling rate (Hz)", min_value=64, max_value=2000,
+                                        value=128, step=1)
+        window_index  = st.number_input("Window index (multi-window files)",
+                                        min_value=0, value=0, step=1)
 
-        st.markdown("---")
-        st.markdown("### Model Selection")
+        st.divider()
+        st.markdown(f'<div class="cs-label">Model Selection</div>', unsafe_allow_html=True)
 
-        MODEL_OPTIONS = []
-        MODEL_OPTIONS.append("HRV Heuristic (no weights needed)")
+        MODEL_OPTIONS = ["HRV Heuristic (no weights needed)"]
         if XGB_AVAILABLE:
             MODEL_OPTIONS.append("XGBoost")
         else:
-            st.caption("⚠️ xgboost not installed")
+            st.markdown(f'<div class="cs-badge">🔴 xgboost not installed</div>', unsafe_allow_html=True)
         if CATBOOST_AVAILABLE:
             MODEL_OPTIONS.append("CatBoost")
         else:
-            st.caption("⚠️ catboost not installed")
+            st.markdown(f'<div class="cs-badge">🔴 catboost not installed</div>', unsafe_allow_html=True)
         if TORCH_AVAILABLE:
             MODEL_OPTIONS += ["CNN","LSTM","RNN","CNN+LSTM"]
         else:
-            st.caption("⚠️ torch not installed")
+            st.markdown(f'<div class="cs-badge">🔴 torch not installed</div>', unsafe_allow_html=True)
 
         model_choice = st.selectbox("Model", MODEL_OPTIONS)
 
-        # Weights path — shown only when relevant
         weights_path = ""
         if model_choice == "XGBoost":
-            weights_path = st.text_input("XGBoost model path (.pkl)",
-                                         value="models/xgb.pkl")
+            weights_path = st.text_input("XGBoost model path (.pkl)", value="models/xgb.pkl")
         elif model_choice == "CatBoost":
-            weights_path = st.text_input("CatBoost model path (.pkl)",
-                                         value="models/catboost.pkl")
+            weights_path = st.text_input("CatBoost model path (.pkl)", value="models/catboost.pkl")
         elif model_choice in ("CNN","LSTM","RNN","CNN+LSTM"):
             weights_path = st.text_input("PyTorch weights path (.pth)",
                                          value=f"models/{model_choice.lower()}_best.pth")
 
-        st.markdown("---")
-        st.markdown(
-            "<div class='disclaimer'>⚠️ <b>Not for clinical use.</b> Research prototype only.</div>",
-            unsafe_allow_html=True)
+        st.divider()
+        # Model availability badges
+        st.markdown(f'<div class="cs-label">Library Status</div>', unsafe_allow_html=True)
+        for name, ok in [
+            ("HRV Heuristic", True),
+            ("XGBoost",       XGB_AVAILABLE),
+            ("CatBoost",      CATBOOST_AVAILABLE),
+            ("PyTorch",       TORCH_AVAILABLE),
+        ]:
+            dot = "🟢" if ok else "🔴"
+            st.markdown(f'<div class="cs-badge">{dot} {name}</div>', unsafe_allow_html=True)
 
-    # ── HEADER ───────────────────────────────────────────────────────────
-    st.markdown("# 🫀 Atrial Fibrillation Detection")
-    st.markdown(
-        "Upload an ECG segment or use a synthetic demo to extract HRV features "
-        "and run AFib prediction.")
+        st.divider()
+        st.markdown(f"""
+        <div style='font-size:0.6rem; color:{COLORS["text_dim"]}; line-height:1.8;'>
+          ⚠️ Research tool only.<br>Not a certified medical device.<br>Consult a physician for diagnosis.
+        </div>""", unsafe_allow_html=True)
 
-    # availability badges
-    badges = []
-    badges.append(f'<span class="model-badge" style="border-color:#68d391;color:#68d391">HRV Heuristic ✓</span>')
-    col = "#63b3ed" if XGB_AVAILABLE else "#718096"
-    badges.append(f'<span class="model-badge" style="border-color:{col};color:{col}">XGBoost {"✓" if XGB_AVAILABLE else "✗"}</span>')
-    col = "#f6ad55" if CATBOOST_AVAILABLE else "#718096"
-    badges.append(f'<span class="model-badge" style="border-color:{col};color:{col}">CatBoost {"✓" if CATBOOST_AVAILABLE else "✗"}</span>')
-    col = "#b794f4" if TORCH_AVAILABLE else "#718096"
-    badges.append(f'<span class="model-badge" style="border-color:{col};color:{col}">PyTorch (CNN/LSTM) {"✓" if TORCH_AVAILABLE else "✗"}</span>')
-    st.markdown(" ".join(badges), unsafe_allow_html=True)
-    st.markdown("")
+    # ── TOP BAR ──────────────────────────────────────────────────────────
+    st.markdown(f"""
+    <div style='background:{COLORS["panel"]}; border-bottom:1px solid {COLORS["border"]};
+                padding:0.85rem 2rem; display:flex; align-items:center;
+                justify-content:space-between; margin:-1.5rem -2rem 1.5rem;'>
+      <div style='display:flex; align-items:center; gap:12px;'>
+        <span style='font-size:1.6rem;'>🫀</span>
+        <div>
+          <span style='font-family:"Sora",sans-serif; font-size:1.25rem; color:white; font-weight:700;'>
+            AFib Detector
+          </span>
+          <span style='font-family:"Inter",sans-serif; font-size:0.72rem; color:{COLORS["text_dim"]};
+                       margin-left:10px; letter-spacing:0.08em; text-transform:uppercase;'>
+            Atrial Fibrillation Detection Dashboard
+          </span>
+        </div>
+      </div>
+      <div style='font-family:"JetBrains Mono",monospace; font-size:0.7rem; color:{COLORS["text_dim"]};'>
+        {time.strftime("%d %b %Y  %H:%M:%S")}
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # ── LOAD SIGNAL ──────────────────────────────────────────────────────
     signal = None; signal_label = ""
@@ -513,7 +690,7 @@ def main():
         if uploaded:
             data = np.load(io.BytesIO(uploaded.read()))
             if data.ndim == 2:
-                idx = min(window_index, data.shape[0]-1)
+                idx    = min(window_index, data.shape[0]-1)
                 signal = data[idx].astype(np.float32)
                 signal_label = f"{uploaded.name} [window {idx}]"
                 st.info(f"Loaded array shape: {data.shape} — showing window {idx}.")
@@ -524,14 +701,21 @@ def main():
         if uploaded:
             arr = pd.read_csv(uploaded, header=None).values.astype(np.float32)
             if arr.ndim == 2 and arr.shape[0] > 1:
-                idx = min(window_index, arr.shape[0]-1)
+                idx    = min(window_index, arr.shape[0]-1)
                 signal = arr[idx]; signal_label = f"{uploaded.name} [row {idx}]"
                 st.info(f"Loaded {arr.shape[0]} rows — showing row {idx}.")
             else:
                 signal = arr.flatten(); signal_label = uploaded.name
 
     if signal is None:
-        st.info("👈 Select an input source from the sidebar to get started.")
+        st.markdown(f"""
+        <div style='padding:80px 20px; text-align:center;'>
+          <div style='font-size:3rem; margin-bottom:12px;'>🫀</div>
+          <div style='font-family:"Inter",sans-serif; font-size:0.9rem;
+                      color:{COLORS["text_dim"]}; letter-spacing:0.06em;'>
+            Select an input source in the sidebar to begin
+          </div>
+        </div>""", unsafe_allow_html=True)
         return
 
     # ── PREPROCESS + FEATURES ────────────────────────────────────────────
@@ -541,142 +725,175 @@ def main():
         rr_ms    = np.diff(peaks) / fs_input * 1000
         rr_ms    = rr_ms[(rr_ms > 250) & (rr_ms < 2000)]
         features = extract_hrv(signal, fs=fs_input)
+        feat     = dict(zip(FEATURE_NAMES, features))
 
-    # ── RUN SELECTED MODEL ────────────────────────────────────────────────
-    label = prob = method_note = None
-    imp_fig = None   # feature importance chart (XGB / CatBoost only)
+    # ── RUN MODEL ────────────────────────────────────────────────────────
+    label = prob = method_note = reasons = None
+    imp_fig = None
 
     if model_choice == "HRV Heuristic (no weights needed)":
         label, prob, reasons = hrv_heuristic(features)
         method_note = "HRV heuristic"
-
     elif model_choice == "XGBoost":
         mdl = load_xgb_model(weights_path)
         if mdl is None:
             st.warning(f"XGBoost model not found at `{weights_path}`. Falling back to HRV heuristic.")
-            label, prob, reasons = hrv_heuristic(features)
-            method_note = "HRV heuristic (XGBoost weights missing)"
+            label, prob, reasons = hrv_heuristic(features); method_note = "HRV heuristic (XGBoost weights missing)"
         else:
-            label, prob = predict_xgb(mdl, features)
-            reasons = None
-            method_note = f"XGBoost — {weights_path}"
+            label, prob = predict_xgb(mdl, features); method_note = f"XGBoost — {weights_path}"
             imp_fig = plot_feature_importance_xgb(mdl)
-
     elif model_choice == "CatBoost":
         mdl = load_catboost_model(weights_path)
         if mdl is None:
             st.warning(f"CatBoost model not found at `{weights_path}`. Falling back to HRV heuristic.")
-            label, prob, reasons = hrv_heuristic(features)
-            method_note = "HRV heuristic (CatBoost weights missing)"
+            label, prob, reasons = hrv_heuristic(features); method_note = "HRV heuristic (CatBoost weights missing)"
         else:
-            label, prob = predict_catboost(mdl, features)
-            reasons = None
-            method_note = f"CatBoost — {weights_path}"
+            label, prob = predict_catboost(mdl, features); method_note = f"CatBoost — {weights_path}"
             imp_fig = plot_feature_importance_cb(mdl)
-
     elif model_choice in ("CNN","LSTM","RNN","CNN+LSTM"):
         mdl = load_deep_model(model_choice, weights_path)
         if mdl is None:
             st.warning(f"Weights not found at `{weights_path}`. Falling back to HRV heuristic.")
-            label, prob, reasons = hrv_heuristic(features)
-            method_note = f"HRV heuristic ({model_choice} weights missing)"
+            label, prob, reasons = hrv_heuristic(features); method_note = f"HRV heuristic ({model_choice} weights missing)"
         else:
-            label, prob = predict_deep(mdl, proc)
-            reasons = None
-            method_note = f"{model_choice} — {weights_path}"
+            label, prob = predict_deep(mdl, proc); method_note = f"{model_choice} — {weights_path}"
 
-    # ── RESULT CARD ──────────────────────────────────────────────────────
-    col_res, col_info = st.columns([1.2, 1])
-    with col_res:
-        css_cls   = "result-afib" if label == "AFib" else "result-normal"
-        icon      = "⚠️" if label == "AFib" else "✅"
-        color     = "#fc8181" if label == "AFib" else "#68d391"
-        bar_color = "#e53e3e" if label == "AFib" else "#38a169"
+    is_afib = label == "AFib"
+
+    # ── ALERT BANNER ─────────────────────────────────────────────────────
+    if is_afib:
         st.markdown(f"""
-        <div class="{css_cls}">
-          <div style="font-size:0.85rem;color:{color};letter-spacing:.1em;text-transform:uppercase;font-weight:600">Prediction</div>
-          <div class="result-title" style="color:{color}">{icon} {label}</div>
-          <div style="font-size:.9rem;color:#a0aec0;margin:.3rem 0 .8rem">
-            AFib probability: <b style="color:{color}">{prob*100:.1f}%</b>
+        <div class='cs-alert cs-alert-afib'>
+          <span style='font-size:1.5rem; flex-shrink:0;'>⚠️</span>
+          <div>
+            <div style='font-weight:700; font-size:0.95rem; color:{COLORS["danger"]}; font-family:"Sora",sans-serif;'>
+              Atrial Fibrillation Detected
+            </div>
+            <div style='font-size:0.78rem; color:{COLORS["text_mid"]}; margin-top:3px;'>
+              AFib probability: <strong>{prob*100:.1f}%</strong> — Consult a physician immediately.
+            </div>
           </div>
-          <div class="prob-bar-wrap">
-            <div class="prob-bar-fill" style="width:{prob*100:.1f}%;background:{bar_color}"></div>
+        </div>""", unsafe_allow_html=True)
+    else:
+        st.markdown(f"""
+        <div class='cs-alert cs-alert-normal'>
+          <span style='font-size:1.5rem; flex-shrink:0;'>✅</span>
+          <div>
+            <div style='font-weight:700; font-size:0.95rem; color:{COLORS["success"]}; font-family:"Sora",sans-serif;'>
+              Normal Sinus Rhythm
+            </div>
+            <div style='font-size:0.78rem; color:{COLORS["text_mid"]}; margin-top:3px;'>
+              AFib probability: <strong>{prob*100:.1f}%</strong> — No atrial fibrillation detected.
+            </div>
           </div>
-          <div style="font-size:.78rem;color:#718096;margin-top:.6rem">Method: {method_note}</div>
-        </div>
-        """, unsafe_allow_html=True)
+        </div>""", unsafe_allow_html=True)
 
-    with col_info:
-        feat = dict(zip(FEATURE_NAMES, features))
-        st.markdown(f"**Signal:** {signal_label}")
-        st.markdown(f"**Duration:** {len(signal)/fs_input:.1f} s &nbsp;|&nbsp; **Sample rate:** {fs_input} Hz")
-        st.markdown(f"**R-peaks detected:** {len(peaks)} &nbsp;|&nbsp; **Valid RR intervals:** {len(rr_ms)}")
-        if len(rr_ms):
-            st.markdown(f"**Mean HR:** {feat['mean_hr']:.1f} bpm &nbsp;|&nbsp; **SDNN:** {feat['sdnn']:.1f} ms")
-        st.markdown("---")
-        if reasons:
-            st.markdown("**Score breakdown (HRV heuristic)**")
-            for k, v in reasons.items():
-                bw  = int(v*100)
-                clr = "#e53e3e" if v>0.6 else "#f6ad55" if v>0.3 else "#68d391"
-                st.markdown(
-                    f"<div style='font-size:.8rem;color:#a0aec0;margin:2px 0'>{k}"
-                    f"<span style='float:right;color:{clr}'>{v*100:.0f}%</span></div>"
-                    f"<div style='background:#1e2740;border-radius:4px;height:5px;margin-bottom:6px'>"
-                    f"<div style='width:{bw}%;background:{clr};height:100%;border-radius:4px'></div></div>",
-                    unsafe_allow_html=True)
+    # ── METRICS ROW ──────────────────────────────────────────────────────
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("AFib Probability", f"{prob*100:.1f}%",
+              delta="HIGH ⚠" if is_afib else "Normal",
+              delta_color="inverse" if is_afib else "normal")
+    m2.metric("Mean Heart Rate",  f"{feat['mean_hr']:.1f} bpm")
+    m3.metric("RMSSD",            f"{feat['rmssd']:.1f} ms",
+              help="Root Mean Square Successive Differences — elevated in AFib")
+    m4.metric("SDNN",             f"{feat['sdnn']:.1f} ms")
+    m5.metric("R-Peaks Detected", str(len(peaks)))
+
+    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+
+    # ── ECG + GAUGE ──────────────────────────────────────────────────────
+    ecg_col, gauge_col = st.columns([3, 1])
+    view_s = min(15, len(signal)/fs_input)
+    n_view = int(view_s * fs_input)
+    with ecg_col:
+        st.plotly_chart(
+            plot_ecg(proc[:n_view], peaks[peaks < n_view], fs=fs_input,
+                     title=f"ECG  ·  First {view_s:.0f}s  ·  {signal_label}",
+                     is_afib=is_afib),
+            use_container_width=True,
+        )
+    with gauge_col:
+        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+        st.plotly_chart(plot_gauge(prob), use_container_width=True)
+        lbl_c = COLORS["danger"] if is_afib else COLORS["success"]
+        st.markdown(
+            f"<div style='text-align:center; font-family:Inter; font-size:0.72rem;"
+            f" color:{lbl_c}; font-weight:700; margin-top:-10px;'>{label.upper()}</div>",
+            unsafe_allow_html=True,
+        )
 
     st.markdown("---")
 
     # ── TABS ─────────────────────────────────────────────────────────────
-    tabs = st.tabs(["📈 ECG Signal","💓 RR Tachogram","🌀 Poincaré","📊 HRV Features","🌲 Feature Importance"])
+    tabs = st.tabs(["💓  RR Tachogram", "🌀  Poincaré", "📊  HRV Features", "🌲  Feature Importance"])
 
     with tabs[0]:
-        view_s  = min(10, len(signal)/fs_input)
-        n_view  = int(view_s * fs_input)
-        st.plotly_chart(plot_ecg(proc[:n_view], peaks[peaks<n_view], fs=fs_input,
-            title=f"Preprocessed ECG — first {view_s:.0f}s"), use_container_width=True)
-
-    with tabs[1]:
         if len(rr_ms) >= 3:
             st.plotly_chart(plot_rr(rr_ms), use_container_width=True)
         else:
             st.warning("Not enough RR intervals detected.")
 
-    with tabs[2]:
+    with tabs[1]:
         if len(rr_ms) >= 4:
-            st.plotly_chart(plot_poincare(rr_ms), use_container_width=True)
+            st.plotly_chart(plot_poincare(rr_ms, is_afib=is_afib), use_container_width=True)
         else:
             st.warning("Not enough RR intervals for Poincaré plot.")
 
-    with tabs[3]:
+    with tabs[2]:
         left, right = st.columns([1,1])
         with left:
-            st.markdown("#### HRV Feature Values")
-            rows = [{"Feature":n,"Value":f"{v:.4f}",
+            st.markdown(f'<div class="cs-label">HRV Feature Values</div>', unsafe_allow_html=True)
+            rows = [{"Feature":n, "Value":f"{v:.4f}",
                      "Unit":FEATURE_UNITS.get(n,""),
                      "Description":FEATURE_DESCRIPTIONS.get(n,"")}
-                    for n,v in zip(FEATURE_NAMES, features)]
+                    for n, v in zip(FEATURE_NAMES, features)]
             df_feat = pd.DataFrame(rows)
             st.dataframe(df_feat, use_container_width=True, height=420, hide_index=True)
         with right:
             st.plotly_chart(plot_radar(features), use_container_width=True)
 
-    with tabs[4]:
+        # Score breakdown (heuristic only)
+        if reasons:
+            with st.expander("🔍  Score breakdown (HRV heuristic)", expanded=False):
+                st.markdown(f"""
+                <div style='font-size:0.8rem; color:{COLORS["text_mid"]}; margin-bottom:0.8rem; line-height:1.6;'>
+                  Each bar shows how much a feature pushed toward AFib.
+                  Higher scores contribute more to the overall AFib probability.
+                </div>""", unsafe_allow_html=True)
+                for k, v in reasons.items():
+                    bw  = int(v*100)
+                    clr = COLORS["danger"] if v > 0.6 else COLORS["warn"] if v > 0.3 else COLORS["success"]
+                    st.markdown(
+                        f"<div style='font-size:.8rem;color:{COLORS['text_mid']};margin:2px 0'>{k}"
+                        f"<span style='float:right;color:{clr};font-family:JetBrains Mono'>{v*100:.0f}%</span></div>"
+                        f"<div style='background:{COLORS['panel2']};border-radius:4px;height:6px;margin-bottom:8px'>"
+                        f"<div style='width:{bw}%;background:{clr};height:100%;border-radius:4px'></div></div>",
+                        unsafe_allow_html=True,
+                    )
+
+    with tabs[3]:
         if imp_fig:
             st.plotly_chart(imp_fig, use_container_width=True)
             st.caption("Importance is derived from the loaded model weights. "
                        "Higher = more influential in the AFib/Normal decision.")
         else:
-            st.info("Feature importance is available when an **XGBoost** or **CatBoost** "
-                    "model is loaded from the sidebar. Deep models (CNN/LSTM) and the "
-                    "HRV heuristic do not produce per-feature importance scores here.")
+            st.markdown(f"""
+            <div class='cs-card'>
+              <div style='font-size:0.85rem; color:{COLORS["text_mid"]}; line-height:1.6;'>
+                Feature importance is available when an <strong style='color:{COLORS["text"]};'>XGBoost</strong>
+                or <strong style='color:{COLORS["text"]};'>CatBoost</strong> model is loaded from the sidebar.
+                Deep models (CNN/LSTM) and the HRV heuristic do not produce per-feature importance scores here.
+              </div>
+            </div>""", unsafe_allow_html=True)
 
     # ── DOWNLOAD ─────────────────────────────────────────────────────────
     st.markdown("---")
-    st.download_button("⬇️ Download HRV features as CSV",
+    st.download_button(
+        "⬇  Download HRV Features (CSV)",
         data=df_feat.to_csv(index=False).encode(),
-        file_name="hrv_features.csv", mime="text/csv")
+        file_name="hrv_features.csv",
+        mime="text/csv",
+    )
 
 
 if __name__ == "__main__":
