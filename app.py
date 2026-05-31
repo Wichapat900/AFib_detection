@@ -405,13 +405,13 @@ def plot_ecg(signal, peaks, fs=FS, title="ECG Signal", is_afib=False):
         title=dict(text=title, font=dict(family="Inter", size=12, color=COLORS["text_mid"]), x=0.01),
         xaxis=dict(
             title="Time (s)", color=COLORS["text_mid"],
-            gridcolor=COLORS["ecg_grid_maj"], gridwidth=1, dtick=0.4, showgrid=True,
+            gridcolor=COLORS["ecg_grid_maj"], gridwidth=1, dtick=1, showgrid=True,
             minor=dict(dtick=0.08, gridcolor=COLORS["ecg_grid_min"], showgrid=True),
             tickfont=dict(family="JetBrains Mono", size=10, color=COLORS["text_mid"]),
         ),
         yaxis=dict(
             title="Amplitude (norm.)", color=COLORS["text_mid"],
-            gridcolor=COLORS["ecg_grid_maj"], gridwidth=1, dtick=0.5, showgrid=True,
+            gridcolor=COLORS["ecg_grid_maj"], gridwidth=1, dtick=1, showgrid=True,
             minor=dict(dtick=0.1, gridcolor=COLORS["ecg_grid_min"], showgrid=True),
             tickfont=dict(family="JetBrains Mono", size=10, color=COLORS["text_mid"]),
         ),
