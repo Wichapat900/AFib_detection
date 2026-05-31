@@ -4,8 +4,8 @@ app.py — AFib Detection Web App
 Streamlit app for detecting Atrial Fibrillation from ECG signals.
 
 Models supported:
-  - XGBoost  (HRV features — loads models/xgb_model.json)
-  - CatBoost (HRV features — loads models/catboost_model.cbm)
+  - XGBoost  (HRV features — loads models/xgb.pkl)
+  - CatBoost (HRV features — loads models/catboost.pkl)
   - CNN / LSTM / RNN / CNN+LSTM  (raw signal — loads models/*.pth)
   - HRV heuristic (no trained model required — always available)
 
@@ -17,7 +17,13 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from pathlib import Path
-import io
+import io, pickle
+
+try:
+    import joblib
+    JOBLIB_AVAILABLE = True
+except ImportError:
+    JOBLIB_AVAILABLE = False
 
 from scipy.signal import find_peaks, butter, filtfilt, welch
 from scipy.stats import skew, kurtosis
@@ -201,35 +207,32 @@ def extract_hrv(signal, fs=FS):
 # MODEL LOADERS  (cached)
 # ═══════════════════════════════════════════════════════════════════════════
 
-@st.cache_resource
-def load_xgb_model(path: str):
-    if not XGB_AVAILABLE:
-        return None
+def _load_pkl(path: str):
+    """Load any .pkl model file using joblib (preferred) or pickle."""
     p = Path(path)
     if not p.exists():
         return None
     try:
-        m = xgb.XGBClassifier()
-        m.load_model(str(p))
-        return m
+        if JOBLIB_AVAILABLE:
+            return joblib.load(str(p))
+        else:
+            with open(p, "rb") as f:
+                return pickle.load(f)
     except Exception as e:
-        st.warning(f"XGBoost load failed: {e}")
+        st.warning(f"Failed to load {path}: {e}")
         return None
+
+@st.cache_resource
+def load_xgb_model(path: str):
+    if not XGB_AVAILABLE:
+        return None
+    return _load_pkl(path)
 
 @st.cache_resource
 def load_catboost_model(path: str):
     if not CATBOOST_AVAILABLE:
         return None
-    p = Path(path)
-    if not p.exists():
-        return None
-    try:
-        m = CatBoostClassifier()
-        m.load_model(str(p))
-        return m
-    except Exception as e:
-        st.warning(f"CatBoost load failed: {e}")
-        return None
+    return _load_pkl(path)
 
 @st.cache_resource
 def load_deep_model(model_name: str, weights_path: str):
@@ -464,11 +467,11 @@ def main():
         # Weights path — shown only when relevant
         weights_path = ""
         if model_choice == "XGBoost":
-            weights_path = st.text_input("XGBoost model path (.json)",
-                                         value="models/xgb_model.json")
+            weights_path = st.text_input("XGBoost model path (.pkl)",
+                                         value="models/xgb.pkl")
         elif model_choice == "CatBoost":
-            weights_path = st.text_input("CatBoost model path (.cbm)",
-                                         value="models/catboost_model.cbm")
+            weights_path = st.text_input("CatBoost model path (.pkl)",
+                                         value="models/catboost.pkl")
         elif model_choice in ("CNN","LSTM","RNN","CNN+LSTM"):
             weights_path = st.text_input("PyTorch weights path (.pth)",
                                          value=f"models/{model_choice.lower()}_best.pth")
