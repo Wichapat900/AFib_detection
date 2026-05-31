@@ -7,7 +7,7 @@ Restyled to match CardioSense aesthetic.
 Models supported:
   - XGBoost  (HRV features — loads models/xgb.pkl)
   - CatBoost (HRV features — loads models/catboost.pkl)
-  - CNN / LSTM / RNN / CNN+LSTM  (raw signal — loads models/*.pth)
+  - CNN / CNN+LSTM  (raw signal — loads models/*.pth)
   - HRV heuristic (no trained model required — always available)
 
 Run: streamlit run app.py
@@ -283,8 +283,8 @@ def load_deep_model(model_name: str, weights_path: str):
         return None
     try:
         import sys; sys.path.insert(0, str(Path(__file__).parent))
-        from model import AFibCNN, AFibLSTM, AFibRNN, AFibCNNLSTM
-        cls_map = {"CNN":AFibCNN,"LSTM":AFibLSTM,"RNN":AFibRNN,"CNN+LSTM":AFibCNNLSTM}
+        from model import AFibCNN, AFibCNNLSTM
+        cls_map = {"CNN":AFibCNN, "CNN+LSTM":AFibCNNLSTM}
         m = cls_map[model_name]()
         m.load_state_dict(torch.load(weights_path, map_location="cpu"))
         m.eval()
@@ -636,7 +636,7 @@ def main():
         else:
             st.markdown(f'<div class="cs-badge">🔴 catboost not installed</div>', unsafe_allow_html=True)
         if TORCH_AVAILABLE:
-            MODEL_OPTIONS += ["CNN","LSTM","RNN","CNN+LSTM"]
+            MODEL_OPTIONS += ["CNN","CNN+LSTM"]
         else:
             st.markdown(f'<div class="cs-badge">🔴 torch not installed</div>', unsafe_allow_html=True)
 
@@ -647,7 +647,7 @@ def main():
             weights_path = st.text_input("XGBoost model path (.pkl)", value="models/xgb.pkl")
         elif model_choice == "CatBoost":
             weights_path = st.text_input("CatBoost model path (.pkl)", value="models/catboost.pkl")
-        elif model_choice in ("CNN","LSTM","RNN","CNN+LSTM"):
+        elif model_choice in ("CNN","CNN+LSTM"):
             weights_path = st.text_input("PyTorch weights path (.pth)",
                                          value=f"models/{model_choice.lower()}_best.pth")
 
@@ -766,7 +766,7 @@ def main():
         else:
             label, prob = predict_catboost(mdl, features); method_note = f"CatBoost — {weights_path}"
             imp_fig = plot_feature_importance_cb(mdl)
-    elif model_choice in ("CNN","LSTM","RNN","CNN+LSTM"):
+    elif model_choice in ("CNN","CNN+LSTM"):
         mdl = load_deep_model(model_choice, weights_path)
         if mdl is None:
             st.warning(f"Weights not found at `{weights_path}`. Falling back to HRV heuristic.")
