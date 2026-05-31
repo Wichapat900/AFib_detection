@@ -311,9 +311,17 @@ def predict_xgb(model, features):
     return ("AFib" if prob >= threshold else "Normal"), prob
 
 def predict_catboost(model, features):
+    if isinstance(model, dict):
+        clf       = model["model"]
+        imputer   = model.get("imputer")
+        threshold = float(model.get("threshold", 0.5))
+    else:
+        clf, imputer, threshold = model, None, 0.5
     x = features.reshape(1, -1)
-    prob = float(model.predict_proba(x)[0][1])
-    return ("AFib" if prob >= 0.5 else "Normal"), prob
+    if imputer is not None:
+        x = imputer.transform(x)
+    prob = float(clf.predict_proba(x)[0][1])
+    return ("AFib" if prob >= threshold else "Normal"), prob
 
 def predict_deep(model, signal):
     sig = signal.copy().astype(np.float32)
