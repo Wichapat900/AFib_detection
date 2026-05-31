@@ -354,13 +354,14 @@ def make_synthetic_ecg(afib=False, seed=42, fs=FS, duration_s=30):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _base_layout(**kwargs):
-    return dict(
+    base = dict(
         paper_bgcolor=COLORS["panel"],
         plot_bgcolor=COLORS["panel"],
         font=dict(color=COLORS["text"], family="Inter"),
         margin=dict(l=55, r=20, t=45, b=45),
-        **kwargs,
     )
+    base.update(kwargs)
+    return base
 
 def plot_ecg(signal, peaks, fs=FS, title="ECG Signal", is_afib=False):
     max_pts = 1500
