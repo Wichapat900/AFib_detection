@@ -56,15 +56,14 @@ Upload a raw ECG segment (`.npy` or `.csv`) or use a built-in synthetic demo, an
 
 ---
 
-## 🤖 Models Supported
+## 🤖 Models
 
-| Mode          | Requires                         |
-| ------------- | -------------------------------- |
-| HRV heuristic | Nothing — works out of the box   |
-| CNN           | PyTorch + trained `.pth` weights |
-| LSTM          | PyTorch + trained `.pth` weights |
-| RNN           | PyTorch + trained `.pth` weights |
-| CNN + LSTM    | PyTorch + trained `.pth` weights |
+| HRV heuristic |
+| CNN |
+| RNN |
+| CNN + LSTM |
+| XGBoost |
+| CatBoost |
 
 To use a deep model, check **"Use deep model"** in the sidebar and point it to your weights file (e.g. `models/best_model.pth`).
 
