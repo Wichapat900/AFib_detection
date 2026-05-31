@@ -58,12 +58,14 @@ Upload a raw ECG segment (`.npy` or `.csv`) or use a built-in synthetic demo, an
 
 ## 🤖 Models
 
-| HRV heuristic |
-| CNN |
-| RNN |
-| CNN + LSTM |
-| XGBoost |
-| CatBoost |
+| Model         | Type                             |
+| ------------- | -------------------------------- |
+| HRV Heuristic | Rule-based (no weights needed)   |
+| CNN           | Deep learning — raw signal       |
+| RNN           | Deep learning — raw signal       |
+| CNN + LSTM    | Deep learning — raw signal       |
+| XGBoost       | Gradient boosting — HRV features |
+| CatBoost      | Gradient boosting — HRV features |
 
 To use a deep model, check **"Use deep model"** in the sidebar and point it to your weights file (e.g. `models/best_model.pth`).
 
