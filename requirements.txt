@@ -4,3 +4,5 @@ scipy>=1.11
 pandas>=2.0
 plotly>=5.18
 torch>=2.0           # optional — only needed for CNN/LSTM inference
+xgboost>=2.0
+catboost>=1.2
