@@ -626,7 +626,7 @@ def main():
         st.divider()
         st.markdown(f'<div class="cs-label">Model Selection</div>', unsafe_allow_html=True)
 
-        MODEL_OPTIONS = ["HRV Heuristic (no weights needed)"]
+        MODEL_OPTIONS = []
         if XGB_AVAILABLE:
             MODEL_OPTIONS.append("XGBoost")
         else:
@@ -635,12 +635,17 @@ def main():
             MODEL_OPTIONS.append("CatBoost")
         else:
             st.markdown(f'<div class="cs-badge">🔴 catboost not installed</div>', unsafe_allow_html=True)
-        if TORCH_AVAILABLE:
-            MODEL_OPTIONS += ["CNN","CNN+LSTM"]
-        else:
-            st.markdown(f'<div class="cs-badge">🔴 torch not installed</div>', unsafe_allow_html=True)
+        # Deep models kept for research only
+        # if TORCH_AVAILABLE:
+        # MODEL_OPTIONS += ["CNN","CNN+LSTM"]
 
-        model_choice = st.selectbox("Model", MODEL_OPTIONS)
+        default_idx = MODEL_OPTIONS.index("XGBoost") if "XGBoost" in MODEL_OPTIONS else 0
+
+        model_choice = st.selectbox(
+            "Model",
+            MODEL_OPTIONS,
+            index=default_idx
+        )
 
         weights_path = ""
         if model_choice == "XGBoost":
@@ -758,21 +763,6 @@ def main():
         else:
             label, prob = predict_xgb(mdl, features); method_note = f"XGBoost — {weights_path}"
             imp_fig = plot_feature_importance_xgb(mdl)
-    elif model_choice == "CatBoost":
-        mdl = load_catboost_model(weights_path)
-        if mdl is None:
-            st.warning(f"CatBoost model not found at `{weights_path}`. Falling back to HRV heuristic.")
-            label, prob, reasons = hrv_heuristic(features); method_note = "HRV heuristic (CatBoost weights missing)"
-        else:
-            label, prob = predict_catboost(mdl, features); method_note = f"CatBoost — {weights_path}"
-            imp_fig = plot_feature_importance_cb(mdl)
-    elif model_choice in ("CNN","CNN+LSTM"):
-        mdl = load_deep_model(model_choice, weights_path)
-        if mdl is None:
-            st.warning(f"Weights not found at `{weights_path}`. Falling back to HRV heuristic.")
-            label, prob, reasons = hrv_heuristic(features); method_note = f"HRV heuristic ({model_choice} weights missing)"
-        else:
-            label, prob = predict_deep(mdl, proc); method_note = f"{model_choice} — {weights_path}"
 
     is_afib = label == "AFib"
 
