@@ -701,11 +701,12 @@ def main():
     signal = None; signal_label = ""
 
     if input_mode.startswith("Demo — Normal"):
-        signal = make_synthetic_ecg(afib=False, seed=7, fs=fs_input)
-        signal_label = "Synthetic Normal ECG"
+        signal = np.load("samples/normal_demo.npy").astype(np.float32)
+        signal_label = "Real Normal ECG (MIT-BIH)"
+
     elif input_mode.startswith("Demo — AFib"):
-        signal = make_synthetic_ecg(afib=True, seed=3, fs=fs_input)
-        signal_label = "Synthetic AFib ECG"
+        signal = np.load("samples/afib_demo.npy").astype(np.float32)
+        signal_label = "Real AFib ECG (MIT-BIH)"
     elif input_mode == "Upload .npy file":
         uploaded = st.file_uploader("Upload .npy ECG file", type=["npy"])
         if uploaded:
