@@ -87,9 +87,12 @@ for start, end in afib_regions:
         segment
     )
 
+    # UPDATED: Now tells the Record Name, Sample Index, and Time
     print(
         f"Saved AFib #{saved+1} "
-        f"({start/FS:.1f}s)"
+        f"| Record: {RECORD} "
+        f"| Sample: {start:,} "
+        f"| Time: {start/FS:.1f}s"
     )
 
     saved += 1
@@ -115,9 +118,12 @@ for start, end in normal_regions:
         segment
     )
 
+    # UPDATED: Now tells the Record Name, Sample Index, and Time
     print(
         f"Saved Normal #{saved+1} "
-        f"({start/FS:.1f}s)"
+        f"| Record: {RECORD} "
+        f"| Sample: {start:,} "
+        f"| Time: {start/FS:.1f}s"
     )
 
     saved += 1
@@ -129,9 +135,7 @@ for start, end in normal_regions:
 # DONE
 # ============================================================
 
-print()
-print("Finished.")
-print()
+print("\nFinished.\n")
 print("Generated:")
 print("samples/afib_1.npy")
 print("samples/afib_2.npy")

@@ -172,12 +172,12 @@ FEATURE_DESCRIPTIONS = {
 }
 
 DEMO_FILES = {
-    "Normal #1": "samples/normal_1.npy",
-    "Normal #2": "samples/normal_2.npy",
-    "Normal #3": "samples/normal_3.npy",
-    "AFib #1": "samples/afib_1.npy",
-    "AFib #2": "samples/afib_2.npy",
-    "AFib #3": "samples/afib_3.npy",
+    "Normal #1": {"path": "samples/normal_1.npy", "record": "04043", "time": "0.5s", "sample": "68"},
+    "Normal #2": {"path": "samples/normal_2.npy", "record": "04043", "time": "2940.1s", "sample": "376,328"},
+    "Normal #3": {"path": "samples/normal_3.npy", "record": "04043", "time": "20332.2s", "sample": "2,602,516"},
+    "AFib #1": {"path": "samples/afib_1.npy", "record": "04043", "time": "2082.0s", "sample": "266,498"},
+    "AFib #2": {"path": "samples/afib_2.npy", "record": "04043", "time": "20197.5s", "sample": "2,585,284"},
+    "AFib #3": {"path": "samples/afib_3.npy", "record": "04043", "time": "20585.2s", "sample": "2,634,911"},
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -708,31 +708,71 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # ── LOAD SIGNAL ──────────────────────────────────────────────────────
+    # ── SIGNAL LOADING ───────────────────────────────────────────────────
     signal = None
-    signal_label = "Unknown"  # Add a default fallback to prevent NameErrors
+    signal_label = "Unknown"
+    demo_meta = None  
 
     if input_mode == "Demo ECG":
         try:
-            signal = np.load(DEMO_FILES[demo_choice])
-            signal_label = demo_choice  # This sets the label to "Normal #1", "AFib #2", etc.
+            signal = np.load(DEMO_FILES[demo_choice]["path"])
+            signal_label = demo_choice
+            demo_meta = DEMO_FILES[demo_choice]  
         except FileNotFoundError:
-            st.error(f"⚠️ Demo file not found at `{DEMO_FILES[demo_choice]}`. Please ensure the 'samples' directory exists in your app folder.")
+            st.error(f"⚠️ Demo file not found at `{DEMO_FILES[demo_choice]['path']}`.")
             st.stop()
             
     elif input_mode == "Upload .npy file":
         uploaded_file = st.sidebar.file_uploader("Upload .npy", type=["npy"])
         if uploaded_file is not None:
             signal = np.load(uploaded_file)
-            signal_label = uploaded_file.name  # Use the filename as the label
+            signal_label = uploaded_file.name
             
     elif input_mode == "Upload .csv file":
         uploaded_file = st.sidebar.file_uploader("Upload .csv", type=["csv"])
         if uploaded_file is not None:
             df = pd.read_csv(uploaded_file)
-            # Assuming the signal is in the first column
             signal = df.iloc[:, 0].values
-            signal_label = uploaded_file.name  # Use the filename as the label
+            signal_label = uploaded_file.name
+
+    # ── SIGNAL INFO DISPLAY ──────────────────────────────────────────────
+    if signal is not None:
+        total_seconds = len(signal) / fs_input
+        duration_str = f"{total_seconds:.1f}s"
+
+        # Generate extra HTML blocks if we have MIT-BIH metadata
+        if demo_meta:
+            extra_html = f"""
+            <div>
+                <div class="cs-label">Source Record</div>
+                <div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['white']};">MIT-BIH {demo_meta['record']}</div>
+            </div>
+            <div>
+                <div class="cs-label">Original Time</div>
+                <div style="font-size: 1.1rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: {COLORS['white']};">{demo_meta['time']}</div>
+            </div>
+            """
+        else:
+            extra_html = ""
+
+        # Display using the custom CardioSense card aesthetic
+        st.markdown(f"""
+        <div class="cs-card" style="display: flex; gap: 3rem; align-items: center; padding: 1rem 1.5rem; flex-wrap: wrap;">
+            <div>
+                <div class="cs-label">File / Label</div>
+                <div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['white']};">{signal_label}</div>
+            </div>
+            {extra_html}
+            <div>
+                <div class="cs-label">Segment Length</div>
+                <div style="font-size: 1.1rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: {COLORS['white']};">{duration_str}</div>
+            </div>
+            <div>
+                <div class="cs-label">Sampling Rate</div>
+                <div style="font-size: 1.1rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: {COLORS['white']};">{fs_input} Hz</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     # ── PREPROCESS + FEATURES ────────────────────────────────────────────
     with st.spinner("Processing signal…"):
         proc     = preprocess(signal, fs=fs_input)
