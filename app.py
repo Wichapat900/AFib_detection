@@ -742,35 +742,41 @@ def main():
 
         # Generate extra HTML blocks if we have MIT-BIH metadata
         if demo_meta:
+            # Strip the 's', convert to math-able number, and calculate end time
+            start_time = float(demo_meta['time'].replace("s", ""))
+            end_time = start_time + total_seconds
+            time_display = f"{start_time:.1f}s — {end_time:.1f}s"
+            
             extra_html = f"""
 <div>
-    <div class="cs-label">Source Record</div>
-    <div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['white']};">MIT-BIH {demo_meta['record']}</div>
+<div class="cs-label">Source Record</div>
+<div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['white']};">MIT-BIH {demo_meta['record']}</div>
 </div>
 <div>
-    <div class="cs-label">Original Time</div>
-    <div style="font-size: 1.1rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: {COLORS['white']};">{demo_meta['time']}</div>
+<div class="cs-label">Original Time</div>
+<div style="font-size: 1.1rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: {COLORS['white']};">{time_display}</div>
 </div>
 """
         else:
             extra_html = ""
 
-        # Display using the custom CardioSense card aesthetic
+        # Display using the custom CardioSense card aesthetic. 
+        # ZERO indentation here prevents Streamlit from turning it into a code block!
         st.markdown(f"""
 <div class="cs-card" style="display: flex; gap: 3rem; align-items: center; padding: 1rem 1.5rem; flex-wrap: wrap;">
-    <div>
-        <div class="cs-label">File / Label</div>
-        <div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['white']};">{signal_label}</div>
-    </div>
-    {extra_html}
-    <div>
-        <div class="cs-label">Segment Length</div>
-        <div style="font-size: 1.1rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: {COLORS['white']};">{duration_str}</div>
-    </div>
-    <div>
-        <div class="cs-label">Sampling Rate</div>
-        <div style="font-size: 1.1rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: {COLORS['white']};">{fs_input} Hz</div>
-    </div>
+<div>
+<div class="cs-label">File / Label</div>
+<div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['white']};">{signal_label}</div>
+</div>
+{extra_html}
+<div>
+<div class="cs-label">Segment Length</div>
+<div style="font-size: 1.1rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: {COLORS['white']};">{duration_str}</div>
+</div>
+<div>
+<div class="cs-label">Sampling Rate</div>
+<div style="font-size: 1.1rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: {COLORS['white']};">{fs_input} Hz</div>
+</div>
 </div>
 """, unsafe_allow_html=True)
     # ── PREPROCESS + FEATURES ────────────────────────────────────────────
