@@ -743,36 +743,36 @@ def main():
         # Generate extra HTML blocks if we have MIT-BIH metadata
         if demo_meta:
             extra_html = f"""
-            <div>
-                <div class="cs-label">Source Record</div>
-                <div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['white']};">MIT-BIH {demo_meta['record']}</div>
-            </div>
-            <div>
-                <div class="cs-label">Original Time</div>
-                <div style="font-size: 1.1rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: {COLORS['white']};">{demo_meta['time']}</div>
-            </div>
-            """
+<div>
+    <div class="cs-label">Source Record</div>
+    <div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['white']};">MIT-BIH {demo_meta['record']}</div>
+</div>
+<div>
+    <div class="cs-label">Original Time</div>
+    <div style="font-size: 1.1rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: {COLORS['white']};">{demo_meta['time']}</div>
+</div>
+"""
         else:
             extra_html = ""
 
         # Display using the custom CardioSense card aesthetic
         st.markdown(f"""
-        <div class="cs-card" style="display: flex; gap: 3rem; align-items: center; padding: 1rem 1.5rem; flex-wrap: wrap;">
-            <div>
-                <div class="cs-label">File / Label</div>
-                <div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['white']};">{signal_label}</div>
-            </div>
-            {extra_html}
-            <div>
-                <div class="cs-label">Segment Length</div>
-                <div style="font-size: 1.1rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: {COLORS['white']};">{duration_str}</div>
-            </div>
-            <div>
-                <div class="cs-label">Sampling Rate</div>
-                <div style="font-size: 1.1rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: {COLORS['white']};">{fs_input} Hz</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+<div class="cs-card" style="display: flex; gap: 3rem; align-items: center; padding: 1rem 1.5rem; flex-wrap: wrap;">
+    <div>
+        <div class="cs-label">File / Label</div>
+        <div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['white']};">{signal_label}</div>
+    </div>
+    {extra_html}
+    <div>
+        <div class="cs-label">Segment Length</div>
+        <div style="font-size: 1.1rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: {COLORS['white']};">{duration_str}</div>
+    </div>
+    <div>
+        <div class="cs-label">Sampling Rate</div>
+        <div style="font-size: 1.1rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; color: {COLORS['white']};">{fs_input} Hz</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
     # ── PREPROCESS + FEATURES ────────────────────────────────────────────
     with st.spinner("Processing signal…"):
         proc     = preprocess(signal, fs=fs_input)
