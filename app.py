@@ -710,23 +710,29 @@ def main():
 
     # ── LOAD SIGNAL ──────────────────────────────────────────────────────
     signal = None
+    signal_label = "Unknown"  # Add a default fallback to prevent NameErrors
 
     if input_mode == "Demo ECG":
         try:
-            # Load the selected demo file using your requested logic
             signal = np.load(DEMO_FILES[demo_choice])
+            signal_label = demo_choice  # This sets the label to "Normal #1", "AFib #2", etc.
         except FileNotFoundError:
             st.error(f"⚠️ Demo file not found at `{DEMO_FILES[demo_choice]}`. Please ensure the 'samples' directory exists in your app folder.")
             st.stop()
             
     elif input_mode == "Upload .npy file":
-        # Handle your .npy upload logic here
-        pass
-    
+        uploaded_file = st.sidebar.file_uploader("Upload .npy", type=["npy"])
+        if uploaded_file is not None:
+            signal = np.load(uploaded_file)
+            signal_label = uploaded_file.name  # Use the filename as the label
+            
     elif input_mode == "Upload .csv file":
-        # Handle your .csv upload logic here
-        pass
-
+        uploaded_file = st.sidebar.file_uploader("Upload .csv", type=["csv"])
+        if uploaded_file is not None:
+            df = pd.read_csv(uploaded_file)
+            # Assuming the signal is in the first column
+            signal = df.iloc[:, 0].values
+            signal_label = uploaded_file.name  # Use the filename as the label
     # ── PREPROCESS + FEATURES ────────────────────────────────────────────
     with st.spinner("Processing signal…"):
         proc     = preprocess(signal, fs=fs_input)
