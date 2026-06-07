@@ -27,8 +27,8 @@ FS = 128
 # AFIB SEGMENT
 # ============================================================
 
-AFIB_START = 1177.5
-AFIB_END   = 1188.5
+AFIB_START = 1310.0
+AFIB_END   = 1320.0
 
 # ============================================================
 # NORMAL SEGMENT
@@ -36,7 +36,7 @@ AFIB_END   = 1188.5
 # Replace these with a Normal region from your plot
 
 NORMAL_START = 300.0
-NORMAL_END   = 311.0
+NORMAL_END   = 310.0
 
 # ============================================================
 # OUTPUT FOLDER
