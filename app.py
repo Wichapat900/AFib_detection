@@ -724,6 +724,12 @@ def main():
             signal = np.load(DEMO_FILES[demo_choice]["path"])
             signal_label = demo_choice
             demo_meta = DEMO_FILES[demo_choice]  
+            if demo_choice == "Normal #3":
+                st.info(
+                "This sample is intentionally challenging. "
+                "Although labelled Normal, the model may classify "
+                "it as AFib because its HRV characteristics resemble AFib."
+                )
         except FileNotFoundError:
             st.error(f"⚠️ Demo file not found at `{DEMO_FILES[demo_choice]['path']}`.")
             st.stop()
@@ -812,6 +818,11 @@ def main():
 
             else:
                 label, prob = predict_xgb(mdl, features)
+
+                if isinstance(mdl, dict):
+                    threshold = mdl.get("threshold", 0.5)
+                else:
+                    threshold = 0.5
                 method_note = f"XGBoost — {weights_path}"
                 imp_fig = plot_feature_importance_xgb(mdl)
 
@@ -829,6 +840,10 @@ def main():
 
             else:
                 label, prob = predict_catboost(mdl, features)
+                if isinstance(mdl, dict):
+                    threshold = mdl.get("threshold", 0.5)
+                else:
+                    threshold = 0.5
                 method_note = f"CatBoost — {weights_path}"
 
         is_afib = label == "AFib"
@@ -860,6 +875,8 @@ def main():
             </div>
             <div style='font-size:0.78rem; color:{COLORS["text_mid"]}; margin-top:3px;'>
               AFib probability: <strong>{prob*100:.1f}%</strong> — Consult a physician immediately.
+              <br>
+              Decision threshold: <strong>{threshold*100:.0f}%</strong>
             </div>
           </div>
         </div>""", unsafe_allow_html=True)
