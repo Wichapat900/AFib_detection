@@ -655,10 +655,10 @@ def main():
             MODEL_OPTIONS.append("XGBoost")
         else:
             st.markdown(f'<div class="cs-badge">🔴 xgboost not installed</div>', unsafe_allow_html=True)
-        if CATBOOST_AVAILABLE:
+        #if CATBOOST_AVAILABLE:
             MODEL_OPTIONS.append("CatBoost")
-        else:
-            st.markdown(f'<div class="cs-badge">🔴 catboost not installed</div>', unsafe_allow_html=True)
+        #else:
+            #st.markdown(f'<div class="cs-badge">🔴 catboost not installed</div>', unsafe_allow_html=True)
         # Deep models kept for research only
         # if TORCH_AVAILABLE:
         # MODEL_OPTIONS += ["CNN","CNN+LSTM"]
