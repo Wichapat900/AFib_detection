@@ -684,11 +684,9 @@ def main():
         # Model availability badges
         st.markdown(f'<div class="cs-label">Library Status</div>', unsafe_allow_html=True)
         for name, ok in [
-            ("HRV Heuristic", True),
             ("XGBoost",       XGB_AVAILABLE),
             ("CatBoost",      CATBOOST_AVAILABLE),
-            ("PyTorch",       TORCH_AVAILABLE),
-        ]:
+            ]:
             dot = "🟢" if ok else "🔴"
             st.markdown(f'<div class="cs-badge">{dot} {name}</div>', unsafe_allow_html=True)
 
