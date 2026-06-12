@@ -13,6 +13,8 @@ Models supported:
 Run: streamlit run app.py
 """
 
+from cProfile import label
+
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -794,28 +796,42 @@ def main():
             feat     = dict(zip(FEATURE_NAMES, features))
 
         # ── RUN MODEL ────────────────────────────────────────────────────
-        label = prob = method_note = reasons = None
-        imp_fig = None
+    label = prob = method_note = reasons = None
+    imp_fig = None
 
-        if model_choice == "XGBoost":
-            mdl = load_xgb_model(weights_path)
-            if mdl is None:
-                st.warning(f"XGBoost model not found at `{weights_path}`. Falling back to HRV heuristic.")
-                label, prob, reasons = hrv_heuristic(features); method_note = "HRV heuristic (XGBoost weights missing)"
-            else:
-                label, prob = predict_xgb(mdl, features); method_note = f"XGBoost — {weights_path}"
-                imp_fig = plot_feature_importance_xgb(mdl)
-        elif model_choice == "CatBoost":
-            mdl = load_catboost_model(weights_path)
-            if mdl is None:
-                st.warning(f"CatBoost model not found at `{weights_path}`. Falling back to HRV heuristic.")
-                label, prob, reasons = hrv_heuristic(features)
-                method_note = "HRV heuristic (CatBoost weights missing)"
-            else:
-                label, prob = predict_catboost(mdl, features)
-                method_note = f"CatBoost — {weights_path}"
+    if model_choice == "XGBoost":
+        mdl = load_xgb_model(weights_path)
+        if mdl is None:
+            st.warning(f"XGBoost model not found at `{weights_path}`. Falling back to HRV heuristic.")
+            label, prob, reasons = hrv_heuristic(features); method_note = "HRV heuristic (XGBoost weights missing)"
+        else:
+            label, prob = predict_xgb(mdl, features); method_note = f"XGBoost — {weights_path}"
+            imp_fig = plot_feature_importance_xgb(mdl)
+    elif model_choice == "CatBoost":
+        mdl = load_catboost_model(weights_path)
+        if mdl is None:
+            st.warning(f"CatBoost model not found at `{weights_path}`. Falling back to HRV heuristic.")
+            label, prob, reasons = hrv_heuristic(features)
+            method_note = "HRV heuristic (CatBoost weights missing)"
+        else:
+            label, prob = predict_catboost(mdl, features)
+            method_note = f"CatBoost — {weights_path}"
 
-        is_afib = label == "AFib"
+    is_afib = label == "AFib"
+
+    if label is None:
+        st.markdown(
+        f"""
+        <div style='padding:80px 20px; text-align:center;'>
+          <div style='font-size:3rem; margin-bottom:12px;'>🫀</div>
+          <div style='font-size:0.9rem; color:{COLORS["text_dim"]};'>
+            Select an input source in the sidebar to begin
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+        )
+        return
         
 
     # ── ALERT BANNER ─────────────────────────────────────────────────────
