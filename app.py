@@ -890,6 +890,8 @@ def main():
             </div>
             <div style='font-size:0.78rem; color:{COLORS["text_mid"]}; margin-top:3px;'>
               AFib probability: <strong>{prob*100:.1f}%</strong> — No atrial fibrillation detected.
+              <br>
+              Decision threshold: <strong>{threshold*100:.0f}%</strong>
             </div>
           </div>
         </div>""", unsafe_allow_html=True)
