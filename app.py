@@ -54,14 +54,14 @@ except ImportError:
 # PAGE CONFIG
 # ═══════════════════════════════════════════════════════════════════════════
 st.set_page_config(
-    page_title="AFib Detector",
+    page_title="CardioSense",
     page_icon="🫀",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 # ═══════════════════════════════════════════════════════════════════════════
-# COLOR PALETTE  (mirrors CardioSense)
+# COLOR PALETTE  
 # ═══════════════════════════════════════════════════════════════════════════
 COLORS = {
     "bg":           "#050b12",
@@ -86,7 +86,7 @@ COLORS = {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CSS  (matches CardioSense)
+# CSS 
 # ═══════════════════════════════════════════════════════════════════════════
 CSS = """
 <style>
@@ -612,7 +612,7 @@ def main():
         <div style='padding:1rem 0 0.8rem;'>
           <div style='font-size:1.8rem; margin-bottom:6px;'>🫀</div>
           <div style='font-family:"Sora",sans-serif; font-size:1.3rem; color:white;
-                      font-weight:700; line-height:1;'>AFib Detector</div>
+                      font-weight:700; line-height:1;'>CardioSense</div>
           <div style='font-family:"JetBrains Mono",monospace; font-size:0.55rem;
                       color:{COLORS["text_dim"]}; letter-spacing:0.12em; margin-top:4px;'>
             HRV ANALYSIS v1.0
@@ -705,11 +705,11 @@ def main():
         <span style='font-size:1.6rem;'>🫀</span>
         <div>
           <span style='font-family:"Sora",sans-serif; font-size:1.25rem; color:white; font-weight:700;'>
-            AFib Detector
+            CardioSense 
           </span>
         </div>
       </div>
-    </div>
+    </div>s
     """, unsafe_allow_html=True)
 
     # ── SIGNAL LOADING ───────────────────────────────────────────────────
