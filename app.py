@@ -784,13 +784,14 @@ def main():
 </div>
 """, unsafe_allow_html=True)
     # ── PREPROCESS + FEATURES ────────────────────────────────────────────
-    with st.spinner("Processing signal…"):
-        proc     = preprocess(signal, fs=fs_input)
-        peaks    = detect_rpeaks(signal, fs=fs_input)
-        rr_ms    = np.diff(peaks) / fs_input * 1000
-        rr_ms    = rr_ms[(rr_ms > 250) & (rr_ms < 2000)]
-        features = extract_hrv(signal, fs=fs_input)
-        feat     = dict(zip(FEATURE_NAMES, features))
+    if signal is not None and len(signal) > 0:
+        with st.spinner("Processing signal…"):
+            proc     = preprocess(signal, fs=fs_input)
+            peaks    = detect_rpeaks(signal, fs=fs_input)
+            rr_ms    = np.diff(peaks) / fs_input * 1000
+            rr_ms    = rr_ms[(rr_ms > 250) & (rr_ms < 2000)]
+            features = extract_hrv(signal, fs=fs_input)
+            feat     = dict(zip(FEATURE_NAMES, features))
 
     # ── RUN MODEL ────────────────────────────────────────────────────────
     label = prob = method_note = reasons = None
