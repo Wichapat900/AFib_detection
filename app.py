@@ -729,13 +729,13 @@ def main():
             st.stop()
             
     elif input_mode == "Upload .npy file":
-        uploaded_file = st.sidebar.file_uploader("Upload .npy", type=["npy"])
+        uploaded_file = st.file_uploader( "Upload .npy ECG File", type=["npy"] )
         if uploaded_file is not None:
             signal = np.load(uploaded_file)
             signal_label = uploaded_file.name
             
     elif input_mode == "Upload .csv file":
-        uploaded_file = st.sidebar.file_uploader("Upload .csv", type=["csv"])
+        uploaded_file = st.file_uploader("Upload .csv ECG File", type=["csv"])   
         if uploaded_file is not None:
             df = pd.read_csv(uploaded_file)
             signal = df.iloc[:, 0].values
