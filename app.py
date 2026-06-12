@@ -793,33 +793,29 @@ def main():
             features = extract_hrv(signal, fs=fs_input)
             feat     = dict(zip(FEATURE_NAMES, features))
 
-    # ── RUN MODEL ────────────────────────────────────────────────────────
-    label = prob = method_note = reasons = None
-    imp_fig = None
+        # ── RUN MODEL ────────────────────────────────────────────────────
+        label = prob = method_note = reasons = None
+        imp_fig = None
 
-    if model_choice == "XGBoost":
-        mdl = load_xgb_model(weights_path)
-        if mdl is None:
-            st.warning(f"XGBoost model not found at `{weights_path}`. Falling back to HRV heuristic.")
-            label, prob, reasons = hrv_heuristic(features); method_note = "HRV heuristic (XGBoost weights missing)"
-        else:
-            label, prob = predict_xgb(mdl, features); method_note = f"XGBoost — {weights_path}"
-            imp_fig = plot_feature_importance_xgb(mdl)
-    elif model_choice == "CatBoost":
-        mdl = load_catboost_model(weights_path)
+        if model_choice == "XGBoost":
+            mdl = load_xgb_model(weights_path)
+            if mdl is None:
+                st.warning(f"XGBoost model not found at `{weights_path}`. Falling back to HRV heuristic.")
+                label, prob, reasons = hrv_heuristic(features); method_note = "HRV heuristic (XGBoost weights missing)"
+            else:
+                label, prob = predict_xgb(mdl, features); method_note = f"XGBoost — {weights_path}"
+                imp_fig = plot_feature_importance_xgb(mdl)
+        elif model_choice == "CatBoost":
+            mdl = load_catboost_model(weights_path)
+            if mdl is None:
+                st.warning(f"CatBoost model not found at `{weights_path}`. Falling back to HRV heuristic.")
+                label, prob, reasons = hrv_heuristic(features)
+                method_note = "HRV heuristic (CatBoost weights missing)"
+            else:
+                label, prob = predict_catboost(mdl, features)
+                method_note = f"CatBoost — {weights_path}"
 
-        if mdl is None:
-            st.warning(
-                f"CatBoost model not found at `{weights_path}`. "
-                "Falling back to HRV heuristic."
-            )
-            label, prob, reasons = hrv_heuristic(features)
-            method_note = "HRV heuristic (CatBoost weights missing)"
-        else:
-            label, prob = predict_catboost(mdl, features)
-            method_note = f"CatBoost — {weights_path}"
-
-    is_afib = label == "AFib"
+        is_afib = label == "AFib"
 
     # ── ALERT BANNER ─────────────────────────────────────────────────────
     if is_afib:
