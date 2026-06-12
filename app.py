@@ -816,6 +816,15 @@ def main():
                 method_note = f"CatBoost — {weights_path}"
 
         is_afib = label == "AFib"
+    else:
+        st.markdown(f"""
+        <div style='padding:80px 20px; text-align:center;'>
+          <div style='font-size:3rem; margin-bottom:12px;'>🫀</div>
+          <div style='font-size:0.9rem; color:{COLORS["text_dim"]};'>
+            Select an input source in the sidebar to begin
+          </div>
+        </div>""", unsafe_allow_html=True)
+        return
 
     # ── ALERT BANNER ─────────────────────────────────────────────────────
     if is_afib:
