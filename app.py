@@ -187,6 +187,10 @@ DEMO_FILES = {
 def bandpass_filter(signal, fs=FS, low=0.5, high=40.0):
     nyq = fs / 2
     b, a = butter(4, [low/nyq, high/nyq], btype="band")
+    # filtfilt needs signal longer than 3x filter order
+    min_len = 3 * max(len(a), len(b))
+    if len(signal) <= min_len:
+        return signal  # return as-is if too short
     return filtfilt(b, a, signal)
 
 def preprocess(signal, fs=FS):
