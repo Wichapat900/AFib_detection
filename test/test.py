@@ -194,18 +194,66 @@ if hrv_test_path.exists():
 else:
     print("HRV features not found -- run extract_features.py first")
 
-# -- MERGE XGB (run test_xgb.py first) ------------------------
-xgb_result_path = Path("results/xgb_result.json")
-xgb_probs_path  = Path("results/xgb_probs.npy")
-if xgb_result_path.exists() and xgb_probs_path.exists():
-    print("Loading XGBoost results...")
-    with open(xgb_result_path) as f:
-        xgb_result = json.load(f)
-    all_results.append(xgb_result)
-    all_probs["XGBoost"] = np.load(xgb_probs_path)
-    print(f"  AUROC={xgb_result['auroc']:.4f}  Recall={xgb_result['recall']:.4f}  F2={xgb_result['f2']:.4f}")
+# -- XGB ------------------------------------------------------
+# XGBoost is evaluated in a subprocess to avoid macOS segfault.
+xgb_path = Path("models/xgb.pkl")
+if xgb_path.exists() and hrv_test_path.exists():
+    print("Evaluating XGBoost (subprocess)...")
+    import subprocess, sys
+    xgb_script = """
+import os
+os.environ["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+import numpy as np, joblib, json
+from pathlib import Path
+from sklearn.metrics import (
+    roc_auc_score, f1_score, recall_score,
+    precision_score, fbeta_score, confusion_matrix
+)
+from sklearn.impute import SimpleImputer
+Path("results").mkdir(exist_ok=True)
+hrv_test = np.load("data/mitb/hrv_X_test.npy")
+hrv_test = np.nan_to_num(hrv_test)
+y_test   = np.load("data/mitb/y_test.npy")
+bundle = joblib.load("models/xgb.pkl")
+model  = bundle["model"]
+thresh = bundle["threshold"]
+model.n_jobs = 1
+imp   = bundle.get("imputer", SimpleImputer(strategy="median"))
+X_imp = imp.transform(hrv_test)
+probs = model.predict_proba(X_imp)[:, 1]
+preds = (probs >= thresh).astype(int)
+tn, fp, fn, tp = confusion_matrix(y_test, preds).ravel()
+result = {
+    "model":       "XGBoost",
+    "auroc":       float(roc_auc_score(y_test, probs)),
+    "f1":          float(f1_score(y_test, preds, zero_division=0)),
+    "f2":          float(fbeta_score(y_test, preds, beta=2, zero_division=0)),
+    "recall":      float(recall_score(y_test, preds, zero_division=0)),
+    "precision":   float(precision_score(y_test, preds, zero_division=0)),
+    "sensitivity": float(tp / (tp + fn + 1e-8)),
+    "specificity": float(tn / (tn + fp + 1e-8)),
+    "tp": int(tp), "fp": int(fp), "fn": int(fn), "tn": int(tn),
+    "threshold":   float(thresh),
+}
+np.save("results/xgb_probs.npy", probs)
+with open("results/xgb_result.json", "w") as f:
+    json.dump(result, f, indent=2)
+"""
+    proc = subprocess.run(
+        [sys.executable, "-c", xgb_script],
+        capture_output=True, text=True
+    )
+    if proc.returncode == 0:
+        with open("results/xgb_result.json") as f:
+            xgb_result = json.load(f)
+        all_results.append(xgb_result)
+        all_probs["XGBoost"] = np.load("results/xgb_probs.npy")
+        print(f"  AUROC={xgb_result['auroc']:.4f}  Recall={xgb_result['recall']:.4f}  F2={xgb_result['f2']:.4f}")
+    else:
+        print(f"XGBoost subprocess failed:\n{proc.stderr}")
 else:
-    print("XGBoost results not found -- run test_xgb.py first")
+    print("XGBoost not found -- run train_ml.py first")
 
 # ============================================================
 # RESULTS TABLE
