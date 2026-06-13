@@ -26,7 +26,7 @@ warnings.filterwarnings("ignore")
 # CONFIG
 # ============================================================
 
-DB_PATH = Path("Long Term AF Database V1.0.0")
+DB_PATH = Path("long-term-af-database-1.0.0/files")
 OUT_PATH = Path("data/ltaf")
 
 TARGET_FS = 128
@@ -71,6 +71,8 @@ EXCLUDED_RHYTHMS = {
     "P"
 }
 
+EXCLUDED_RECORDS = ["00"]
+
 RECORDS = [
     "01","03","05","06","07","08","10",
     "100","101","102","103","104","105",
@@ -87,7 +89,7 @@ RECORDS = [
     "60","62","64","65","68","69",
     "70","71","72","74","75"
 ]
-##"00"##
+
 # ============================================================
 # FILTER
 # ============================================================
@@ -294,15 +296,9 @@ def preprocess_ltaf():
 
     patients = list(patient_data.keys())
 
-    train_patients, temp_patients = train_test_split(
+    train_patients, val_patients = train_test_split(
         patients,
         test_size=0.2,
-        random_state=RANDOM_STATE
-    )
-
-    val_patients, test_patients = train_test_split(
-        temp_patients,
-        test_size=0.5,
         random_state=RANDOM_STATE
     )
 
@@ -324,7 +320,6 @@ def preprocess_ltaf():
 
     X_train, y_train = collect(train_patients)
     X_val, y_val = collect(val_patients)
-    X_test, y_test = collect(test_patients)
 
     np.save(OUT_PATH / "X_train.npy", X_train)
     np.save(OUT_PATH / "y_train.npy", y_train)
@@ -332,18 +327,13 @@ def preprocess_ltaf():
     np.save(OUT_PATH / "X_val.npy", X_val)
     np.save(OUT_PATH / "y_val.npy", y_val)
 
-    np.save(OUT_PATH / "X_test.npy", X_test)
-    np.save(OUT_PATH / "y_test.npy", y_test)
-
     summary = {
 
         "train_shape": list(X_train.shape),
         "val_shape": list(X_val.shape),
-        "test_shape": list(X_test.shape),
 
         "train_patients": train_patients,
         "val_patients": val_patients,
-        "test_patients": test_patients,
 
         "timestamp":
             datetime.datetime.now().strftime(
