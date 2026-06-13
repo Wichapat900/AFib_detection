@@ -39,9 +39,7 @@ warnings.filterwarnings("ignore")
 # CONFIG
 # ============================================================
 
-DB_PATH = Path(
-    "MIT-BIH Atrial Fibrillation Database V1.0.0"
-)
+DB_PATH = Path("mit-bih-atrial-fibrillation-database-1.0.0/files")
 
 OUT_PATH = Path("data/mitb")
 
@@ -458,114 +456,38 @@ def preprocess():
         )
 
     # ========================================================
-    # BALANCED PATIENT SPLIT
+    # COLLECT ALL AS TEST
     # ========================================================
 
-    patient_stats = []
+    all_patients = list(patient_data.keys())
 
-    for patient in patient_data:
+    X_test = []
+    y_test = []
 
-        y = patient_data[patient]["y"]
+    for p in all_patients:
 
-        afib = np.sum(y == 1)
+        X_test.extend(patient_data[p]["X"])
+        y_test.extend(patient_data[p]["y"])
 
-        normal = np.sum(y == 0)
-
-        total = afib + normal
-
-        afib_ratio = afib / (total + 1e-8)
-
-        patient_stats.append({
-
-            "patient": patient,
-
-            "afib_ratio": afib_ratio
-        })
-
-    patient_stats = sorted(
-        patient_stats,
-        key=lambda x: x["afib_ratio"]
-    )
-
-    train_patients = []
-    val_patients = []
-    test_patients = []
-
-    for i, p in enumerate(patient_stats):
-
-        patient = p["patient"]
-
-        if i % 5 == 0:
-
-            test_patients.append(patient)
-
-        elif i % 5 == 1:
-
-            val_patients.append(patient)
-
-        else:
-
-            train_patients.append(patient)
+    X_test = np.array(X_test, dtype=np.float32)
+    y_test = np.array(y_test, dtype=np.int8)
 
     print("\n" + "=" * 60)
-    print("BALANCED PATIENT SPLIT")
+    print("ALL RECORDS → TEST SET")
     print("=" * 60)
 
-    print("\nTRAIN:", train_patients)
-    print("\nVAL:", val_patients)
-    print("\nTEST:", test_patients)
-
-    # ========================================================
-    # COLLECT
-    # ========================================================
-
-    def collect(patient_list):
-
-        X = []
-        y = []
-
-        for p in patient_list:
-
-            X.extend(patient_data[p]["X"])
-            y.extend(patient_data[p]["y"])
-
-        return (
-            np.array(X, dtype=np.float32),
-            np.array(y, dtype=np.int8)
-        )
-
-    X_train, y_train = collect(train_patients)
-
-    X_val, y_val = collect(val_patients)
-
-    X_test, y_test = collect(test_patients)
+    print("\nTEST:", all_patients)
 
     # ========================================================
     # SAVE
     # ========================================================
 
-    np.save(OUT_PATH / "X_train.npy", X_train)
-    np.save(OUT_PATH / "y_train.npy", y_train)
-
-    np.save(OUT_PATH / "X_val.npy", X_val)
-    np.save(OUT_PATH / "y_val.npy", y_val)
-
     np.save(OUT_PATH / "X_test.npy", X_test)
     np.save(OUT_PATH / "y_test.npy", y_test)
 
     np.save(
-        OUT_PATH / "train_patients.npy",
-        np.array(train_patients)
-    )
-
-    np.save(
-        OUT_PATH / "val_patients.npy",
-        np.array(val_patients)
-    )
-
-    np.save(
         OUT_PATH / "test_patients.npy",
-        np.array(test_patients)
+        np.array(all_patients)
     )
 
     # ========================================================
@@ -574,26 +496,8 @@ def preprocess():
 
     summary = {
 
-        "train_shape":
-            list(X_train.shape),
-
-        "val_shape":
-            list(X_val.shape),
-
         "test_shape":
             list(X_test.shape),
-
-        "train_AFib":
-            int(np.sum(y_train == 1)),
-
-        "train_Normal":
-            int(np.sum(y_train == 0)),
-
-        "val_AFib":
-            int(np.sum(y_val == 1)),
-
-        "val_Normal":
-            int(np.sum(y_val == 0)),
 
         "test_AFib":
             int(np.sum(y_test == 1)),
@@ -601,14 +505,8 @@ def preprocess():
         "test_Normal":
             int(np.sum(y_test == 0)),
 
-        "train_patients":
-            train_patients,
-
-        "val_patients":
-            val_patients,
-
         "test_patients":
-            test_patients,
+            all_patients,
 
         "timestamp":
             datetime.datetime.now().strftime(
@@ -637,15 +535,7 @@ def preprocess():
 
     print("=" * 60)
 
-    print(f"Train : {X_train.shape}")
-    print(f"Val   : {X_val.shape}")
-    print(f"Test  : {X_test.shape}")
-
-    print("\nTrain labels:")
-    print(np.unique(y_train, return_counts=True))
-
-    print("\nVal labels:")
-    print(np.unique(y_val, return_counts=True))
+    print(f"Test : {X_test.shape}")
 
     print("\nTest labels:")
     print(np.unique(y_test, return_counts=True))
