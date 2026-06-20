@@ -2,7 +2,7 @@
 app.py — AFib Detection Web App
 ================================
 Streamlit app for detecting Atrial Fibrillation from ECG signals.
-Restyled to match CardioSense aesthetic.
+Restyled to match HeartTrack aesthetic.
 
 Models supported:
   - XGBoost  (HRV features — loads models/xgb.pkl)
@@ -54,7 +54,7 @@ except ImportError:
 # PAGE CONFIG
 # ═══════════════════════════════════════════════════════════════════════════
 st.set_page_config(
-    page_title="CardioSense",
+    page_title="HeartTrack",
     page_icon="🫀",
     layout="wide",
     initial_sidebar_state="expanded",
